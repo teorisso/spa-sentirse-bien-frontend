@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import PageHero from '../components/PageHero';
 import Servicios from '../components/Servicios';
+import ServicioModal from '../components/admin/ServicioModal';
 import { IService } from '../types';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ServiciosPage() {
   const [services, setServices] = useState<IService[]>([]);

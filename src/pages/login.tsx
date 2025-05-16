@@ -39,11 +39,7 @@ export default function LoginPage() {
         
         const userRole = data.user.role;
         setTimeout(() => {
-          if (userRole === 'admin') {
-            router.push('/admin/dashboard');
-          } else {
-            router.push('/reserva');
-          }
+          router.push('/'); // Todos los usuarios van a la página principal
         }, 1000);
       } else {
         setMensaje(data.message || 'Error en el inicio de sesión');

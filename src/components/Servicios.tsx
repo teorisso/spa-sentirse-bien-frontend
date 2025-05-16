@@ -127,7 +127,7 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
                     >
                       <div className="absolute inset-0">
                         <Image
-                          src={service.Image || '/images/default-service.jpg'}
+                          src={service.Image || '/default-service.jpg'}
                           alt={service.nombre}
                           fill
                           className="object-cover"

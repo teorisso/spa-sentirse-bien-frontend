@@ -11,7 +11,7 @@ import { useRouter } from 'next/router';
 
 function AppContent({ Component, pageProps }: AppProps) {
     const router = useRouter();
-    const isAdminRoute = router.pathname.startsWith('/admin');
+    const isAdminRoute = false; // Desactivar la lógica de rutas admin para que siempre muestre el header normal
 
     return (
         <>

@@ -45,6 +45,7 @@ export default function Header({ transparent = true }: HeaderProps) {
     { href: '/', label: 'INICIO' },
     { href: '/servicios', label: 'SERVICIOS' },
     { href: '/conocenos', label: 'CONÓCENOS' },
+    { href: '/contacto', label: 'CONTACTO' },
     { href: isAdmin ? '/admin/turnos' : '/turnos', label: isAdmin ? 'TURNOS' : 'MIS TURNOS' },
   ];
 
