@@ -32,8 +32,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const menuItems = [
     { icon: FiHome, label: 'Dashboard', path: '/admin' },
-    { icon: FiSettings, label: 'Servicios', path: '/admin/servicios' },
-    { icon: FiCalendar, label: 'Turnos', path: '/admin/turnos' },
+    { icon: FiSettings, label: 'Servicios', path: '/servicios' }, // Ruta pública adaptativa
+    { icon: FiCalendar, label: 'Turnos', path: '/turnos' }, // Ruta pública adaptativa
     { icon: FiUsers, label: 'Empleados', path: '/admin/empleados' },
     { icon: FiBarChart2, label: 'Reportes', path: '/admin/reportes' },
   ];

@@ -8,9 +8,12 @@ import { IService } from '../types';
 
 interface ServiciosProps {
   services: IService[];
+  isAdmin?: boolean;
+  onEdit?: (service: IService) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function Servicios({ services }: ServiciosProps) {
+export default function Servicios({ services, isAdmin, onEdit, onDelete }: ServiciosProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
 
@@ -155,6 +158,22 @@ export default function Servicios({ services }: ServiciosProps) {
                               </button>
                             </Link>
                           </div>
+                          {isAdmin && (
+                            <div className="p-4 flex space-x-2">
+                              <button 
+                                onClick={() => onEdit?.(service)}
+                                className="bg-blue-500 text-white py-1 px-3 rounded text-sm"
+                              >
+                                Editar
+                              </button>
+                              <button 
+                                onClick={() => onDelete?.(service._id)}
+                                className="bg-red-500 text-white py-1 px-3 rounded text-sm"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

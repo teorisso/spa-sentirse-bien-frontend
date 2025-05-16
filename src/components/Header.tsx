@@ -44,14 +44,9 @@ export default function Header({ transparent = true }: HeaderProps) {
   const navLinks = [
     { href: '/', label: 'INICIO' },
     { href: '/servicios', label: 'SERVICIOS' },
-    { href: '/conocenos', label: 'NOSOTROS' },
-    { href: '/turnos', label: 'MIS TURNOS' },
-    { href: '/contacto', label: 'CONTACTO' }
+    { href: '/conocenos', label: 'CONÓCENOS' },
+    { href: isAdmin ? '/admin/turnos' : '/turnos', label: isAdmin ? 'TURNOS' : 'MIS TURNOS' },
   ];
-
-  if (isAdmin) {
-    navLinks.push({ href: '/admin/dashboard', label: 'ADMIN' });
-  }
 
   return (
     <motion.header 
