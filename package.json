@@ -77,6 +77,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/caseless": "^0.12.5",
     "@types/express": "^5.0.1",
+    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/long": "^4.0.2",
     "@types/node": "^20.17.47",
