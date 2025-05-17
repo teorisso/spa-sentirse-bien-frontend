@@ -58,7 +58,7 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="flex flex-col md:flex-row gap-8">
 
-          <div className="md:w-64 w-full bg-white/80 rounded-xl shadow-lg p-6 h-fit backdrop-blur-sm border border-accent/20">
+           <div className="md:w-64 w-full bg-white/80 rounded-xl shadow-lg p-6 h-fit backdrop-blur-sm border border-accent/20">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-lora font-semibold text-primary">Filtrar por</h3>
               {(selectedCategory || priceRange.max < 100000) && (
@@ -96,20 +96,24 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
 
             <div>
               <h4 className="text-sm font-medium text-primary/80 mb-2">Rango de Precio</h4>
-              <div className="space-y-2">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>${priceRange.min}</span>
+                  <span>${priceRange.max}</span>
+                </div>
                 <input
                   type="range"
                   min="0"
                   max="100000"
                   step="1000"
                   value={priceRange.max}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: Number(e.target.value) }))}
-                  className="w-full"
-                  title="Rango de precio máximo"
+                  onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })}
+                  className="w-full accent-accent"
                 />
               </div>
             </div>
           </div>
+
 
           <div className="flex-1">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -152,11 +156,13 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
                             <p className="text-sm text-primary/80 mb-3 line-clamp-2">{service.descripcion}</p>
                           </div>
                           <div className="flex justify-end">
-                            <Link href="/reserva">
-                              <button className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-all text-sm font-medium">
-                                Reservar
-                              </button>
-                            </Link>
+                            {!isAdmin && ( // Solo mostrar el botón de "Reservar" si no es admin
+                              <Link href="/reserva">
+                                <button className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-all text-sm font-medium">
+                                  Reservar
+                                </button>
+                              </Link>
+                            )}
                           </div>
                           {isAdmin && (
                             <div className="p-4 flex space-x-2">
