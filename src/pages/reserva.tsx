@@ -151,7 +151,9 @@ export default function ReservaPage() {
           <div className="relative mt-2">
             <div className="absolute w-full h-1 bg-gray-200"></div>
             <div 
-              className={`absolute ${step === 1 ? styles.progressBar0 : step === 2 ? styles.progressBar50 : styles.progressBar100}`}
+              className={`absolute h-1 bg-primary transition-all duration-300 ${
+                step === 1 ? 'w-0' : step === 2 ? 'w-1/2' : 'w-full'
+              }`}
             ></div>
           </div>
           </div>

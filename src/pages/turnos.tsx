@@ -19,34 +19,59 @@ export default function TurnosPage() {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   useEffect(() => {
+    console.log("Effect running, user state:", user ? "authenticated" : "unauthenticated");
+    
     if (!user) {
       toast.error('Debes iniciar sesión para ver tus turnos');
       router.push('/login');
-    } else {
-      fetchTurnos();
+      return; // Return early to prevent the fetch attempt
     }
-  }, [user, router]);
+    
+    fetchTurnos();
+    // Remove router from dependency array to prevent re-fetching on route changes
+  }, [user]);
 
   const fetchTurnos = async () => {
-    if (!user?._id) return;
+    if (!user?._id) {
+      console.log('No user ID available, skipping fetch');
+      setLoading(false);
+      return;
+    }
     
     try {
+      setLoading(true); // Ensure loading state is set before fetching
+      console.log('Comenzando fetch de turnos para usuario:', user._id);
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/user/${user._id}`, {
+      
+      if (!token) {
+        console.error('No token available');
+        toast.error('No se encontró token de autenticación');
+        setLoading(false);
+        return;
+      }
+      
+      // Use a more basic fetch approach like in servicios.tsx
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_TURNO}/user/${user._id}`;
+      console.log('Fetching from:', apiUrl);
+      
+      const res = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Error al obtener los turnos');
-      }
+      console.log('Respuesta API status:', res.status);
       
       const data = await res.json();
+      console.log('Datos recibidos:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al obtener los turnos');
+      }
+      
       setTurnos(data);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error en fetchTurnos:', error);
       toast.error(error instanceof Error ? error.message : 'No se pudieron cargar tus turnos');
     } finally {
       setLoading(false);
@@ -89,7 +114,19 @@ export default function TurnosPage() {
   });
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Cargando...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <p className="mb-4">Cargando...</p>
+        <details className="text-sm text-gray-500 max-w-md p-4 bg-gray-50 rounded">
+          <summary className="cursor-pointer">Información de depuración</summary>
+          <div className="mt-2 text-xs">
+            <p>Usuario ID: {user?._id || 'No disponible'}</p>
+            <p>API Endpoint: {process.env.NEXT_PUBLIC_API_TURNO ? 'Configurado' : 'No configurado'}</p>
+            <p>Token: {localStorage.getItem('token') ? 'Presente' : 'No disponible'}</p>
+          </div>
+        </details>
+      </div>
+    );
   }
 
   return (
