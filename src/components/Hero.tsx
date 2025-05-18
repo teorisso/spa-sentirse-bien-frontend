@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 export default function Hero() {
   return (
@@ -31,15 +32,15 @@ export default function Hero() {
         >
           Vive la experiencia de un descanso profundo para el alma.
         </motion.p>
-        <motion.a
-          href="/reserva"
-          className="inline-block mt-6 px-10 py-4 bg-primary text-white rounded-full shadow-lg font-semibold text-lg hover:bg-[#5A9A98] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
         >
-          Reservá tu turno
-        </motion.a>
+          <Link href="/reserva" className="inline-block px-10 py-4 bg-primary text-white rounded-full shadow-lg font-semibold text-lg hover:bg-[#5A9A98] transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            Reservá tu turno
+          </Link>
+        </motion.div>
       </motion.div>
       <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] pointer-events-none">
         <svg
