@@ -6,13 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
-import { ITurno } from '@/types';
+import { ITurnoPopulated } from '@/types';
 import { X, Calendar, Clock, User, FileText } from 'lucide-react';
 
 export default function AdminTurnosPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isAuthLoaded } = useAuth();
   const router = useRouter();
-  const [turnos, setTurnos] = useState<ITurno[]>([]);
+  const [turnos, setTurnos] = useState<ITurnoPopulated[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para filtrado
@@ -20,13 +20,19 @@ export default function AdminTurnosPage() {
   const [dateFilter, setDateFilter] = useState<string>('');
   
   useEffect(() => {
-    if (!user || !isAdmin) {
-      toast.error('Acceso no autorizado');
-      router.push('/login');
-    } else {
-      fetchTurnos();
+    // Only check authentication after AuthContext has finished loading
+    if (!isAuthLoaded) {
+      return; // Wait until auth is loaded before making decisions
     }
-  }, [user, isAdmin, router]);
+    
+    if (!user) {
+      toast.error('Debes iniciar sesión para ver tus turnos');
+      router.push('/login');
+      return;
+    }
+    
+    fetchTurnos();
+  }, [user, isAuthLoaded, router]);
 
   const fetchTurnos = async () => {
     try {

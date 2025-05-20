@@ -7,31 +7,56 @@ import PageHero from '@/components/PageHero';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
-import { ITurno } from '@/types';
+import { ITurnoPopulated } from '@/types';
+import ReservaModal from '@/components/ReservaModal';
+import dynamic from 'next/dynamic';
 
-export default function TurnosPage() {
-  const { user } = useAuth();
+// Create a client-side only version of the page to avoid hydration errors
+const TurnosPage = () => {
+  const { user, isAuthLoaded } = useAuth();
   const router = useRouter();
-  const [turnos, setTurnos] = useState<ITurno[]>([]);
+  const [turnos, setTurnos] = useState<ITurnoPopulated[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // For client-side rendering only
+  const [isMounted, setIsMounted] = useState(false);
 
   // Estados para filtrado
   const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   useEffect(() => {
-    console.log("Effect running, user state:", user ? "authenticated" : "unauthenticated");
+    // Prevent hydration issues by setting this after the component mounts
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return; // Skip server-side rendering
+
+    console.log("Effect running, auth state:", { 
+      user: !!user, 
+      isAuthLoaded, 
+      token: typeof window !== 'undefined' ? !!localStorage.getItem('token') : false 
+    });
     
+    // Only proceed when auth is fully loaded
+    if (!isAuthLoaded) {
+      console.log("Auth still loading, waiting...");
+      return;
+    }
+    
+    // Now check if user exists
     if (!user) {
+      console.log("No user found after auth loaded, redirecting to login");
       toast.error('Debes iniciar sesión para ver tus turnos');
       router.push('/login');
-      return; // Return early to prevent the fetch attempt
+      return;
     }
     
     fetchTurnos();
-    // Remove router from dependency array to prevent re-fetching on route changes
-  }, [user]);
+  }, [user, isAuthLoaded, isMounted]); // Add isMounted to dependencies
 
-  const fetchTurnos = async () => {
+  const fetchTurnos = async (retryCount = 0, maxRetries = 3) => {
     if (!user?._id) {
       console.log('No user ID available, skipping fetch');
       setLoading(false);
@@ -39,41 +64,138 @@ export default function TurnosPage() {
     }
     
     try {
-      setLoading(true); // Ensure loading state is set before fetching
-      console.log('Comenzando fetch de turnos para usuario:', user._id);
       const token = localStorage.getItem('token');
-      
       if (!token) {
-        console.error('No token available');
-        toast.error('No se encontró token de autenticación');
+        console.error('No token available in localStorage');
+        toast.error('No se encontró tu token de autenticación. Por favor, inicia sesión nuevamente.');
+        router.push('/login');
         setLoading(false);
         return;
       }
       
-      // Use a more basic fetch approach like in servicios.tsx
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_TURNO}/user/${user._id}`;
-      console.log('Fetching from:', apiUrl);
-      
-      const res = await fetch(apiUrl, {
+      // Use token as URL parameter to avoid CORS issues with Authorization header
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}?token=${token}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-cache'
       });
       
-      console.log('Respuesta API status:', res.status);
+      console.log('Response status:', res.status);
       
-      const data = await res.json();
-      console.log('Datos recibidos:', data);
+      // Check for HTML response
+      const contentType = res.headers.get('content-type');
+      console.log('Content-Type:', contentType);
       
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al obtener los turnos');
+      // Try to parse response text first to debug
+      const responseText = await res.text();
+      console.log('Response body preview:', responseText.substring(0, 200));
+      
+      if (contentType && contentType.includes('text/html')) {
+        // Provide more specific error info
+        console.error('Server returned HTML instead of JSON. HTML preview:', responseText.substring(0, 300));
+        
+        // Verificar si es un problema de inicio de Render
+        if (responseText.includes('application is starting') || 
+            responseText.includes('building')) {
+          throw new Error('El servidor está iniciando. Por favor espera unos momentos e intenta nuevamente.');
+        }
+        
+        // Verificar si parece un error de autenticación
+        if (responseText.includes('login') || responseText.includes('unauthorized') ||
+            responseText.includes('not authorized')) {
+          // Limpiar token y datos de usuario localmente
+          localStorage.removeItem('token');
+          toast.error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+          router.push('/login');
+          return;
+        }
+        
+        throw new Error('El servidor devolvió HTML en lugar de JSON. Posible problema de autenticación.');
       }
       
-      setTurnos(data);
+      // Now try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        throw new Error('La respuesta del servidor no es un JSON válido');
+      }
+      
+      if (!res.ok) {
+        throw new Error(data.message || `Error del servidor: ${res.status}`);
+      }
+      
+      if (Array.isArray(data)) {
+        // Filtrar los turnos del usuario en el frontend
+        const userTurnos = data.filter(turno => 
+          turno.cliente === user._id || 
+          turno.cliente?._id === user._id
+        );
+        setTurnos(userTurnos);
+      } else {
+      }
+      setLoading(false);
     } catch (error) {
-      console.error('Error en fetchTurnos:', error);
-      toast.error(error instanceof Error ? error.message : 'No se pudieron cargar tus turnos');
-    } finally {
+      // Combina ambos bloques catch aquí
+    
+      // Primero maneja los errores de AbortError (anteriormente en el primer catch)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log(`Request timed out after ${timeout / 1000} seconds`);
+        // Don't throw here, just retry
+        if (retryCount < maxRetries) {
+          console.log('Timeout occurred, trying again...');
+          toast.loading(`El servidor está tardando en responder. Reintentando automáticamente...`);
+          
+          // Shorter delay for timeout retries
+          setTimeout(() => {
+            toast.dismiss();
+            fetchTurnos(retryCount + 1, maxRetries);
+          }, 1000); // Just a short pause before retry
+          return;
+        }
+        error = new Error('La solicitud tomó demasiado tiempo y fue cancelada después de varios intentos');
+      }
+
+      // Ahora maneja todos los tipos de errores (lo que estaba en el segundo catch)
+      console.error('Full error:', error);
+      
+      // If this was a network error and we haven't exceeded max retries, try again
+      if ((error instanceof TypeError && error.message.includes('Failed to fetch')) && 
+          retryCount < maxRetries) {
+        
+        // Increase max retries to 3 (from 2) for Render's cold start
+        // Create a toast ID but don't auto-dismiss it
+        toast.loading(`El servidor parece estar iniciando. Reintentando en ${(retryCount + 1) * 5} segundos...`);
+        
+        // Increase delay for longer server bootup time
+        const delay = (retryCount + 1) * 5000; // 5, 10, 15 seconds
+        
+        // Try again with longer backoff
+        setTimeout(() => {
+          toast.dismiss();
+          fetchTurnos(retryCount + 1, maxRetries);
+        }, delay);
+        return;
+      }
+      
+      // More specific error messages depending on the error
+      let errorMessage = 'No se pudieron cargar tus turnos';
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMessage = 'No se pudo conectar con el servidor. El servidor puede estar iniciando o inactivo. Por favor, inténtalo de nuevo en unos momentos.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      if (error instanceof TypeError && error.message.includes('blocked by CORS policy')) {
+        errorMessage = 'Error de permisos CORS. Contacta al administrador del sistema.';
+      }
+      
+      toast.error(errorMessage);
+      setTurnos([]);
       setLoading(false);
     }
   };
@@ -83,15 +205,27 @@ export default function TurnosPage() {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${turnoId}`, {
+      if (!token) {
+        toast.error('No se encontró tu token de autenticación');
+        return;
+      }
+      
+      // Primero obtenemos el turno actual
+      const turnoResponse = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/${turnoId}?token=${token}`);
+      if (!turnoResponse.ok) {
+        throw new Error('No se pudo obtener la información del turno');
+      }
+      
+      const turnoActual = await turnoResponse.json();
+      
+      // Actualizamos solo el estado
+      turnoActual.estado = 'cancelado';
+      
+      // Enviamos el turno completo con el estado actualizado
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${turnoId}?token=${token}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          estado: 'cancelado'
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(turnoActual)
       });
       
       if (!res.ok) {
@@ -100,7 +234,6 @@ export default function TurnosPage() {
       }
       
       toast.success('Turno cancelado con éxito');
-      // Actualizar la lista de turnos
       fetchTurnos();
     } catch (error) {
       console.error('Error:', error);
@@ -113,6 +246,11 @@ export default function TurnosPage() {
     return turno.estado === statusFilter;
   });
 
+  // If not mounted yet, return a simple loading state to avoid hydration issues
+  if (!isMounted) {
+    return <div className="flex justify-center items-center min-h-screen">Cargando...</div>;
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
@@ -122,7 +260,7 @@ export default function TurnosPage() {
           <div className="mt-2 text-xs">
             <p>Usuario ID: {user?._id || 'No disponible'}</p>
             <p>API Endpoint: {process.env.NEXT_PUBLIC_API_TURNO ? 'Configurado' : 'No configurado'}</p>
-            <p>Token: {localStorage.getItem('token') ? 'Presente' : 'No disponible'}</p>
+            <p>Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'Presente' : 'No disponible'}</p>
           </div>
         </details>
       </div>
@@ -137,7 +275,7 @@ export default function TurnosPage() {
       />
       
       <div className="max-w-6xl mx-auto p-6 my-12">
-        {/* Filtros */}
+        {/* Filtros y botón de reserva */}
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <label htmlFor="statusFilter" className="mr-2 text-primary font-medium">Filtrar por estado:</label>
@@ -156,9 +294,13 @@ export default function TurnosPage() {
           </div>
           
           <button
-            onClick={() => router.push('/reserva')}
-            className="bg-primary text-white px-4 py-2 rounded-md"
+            onClick={() => setIsModalOpen(true)}
+            className="bg-primary text-white px-4 py-2 rounded-md flex items-center gap-2"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
             Reservar Nuevo Turno
           </button>
         </div>
@@ -167,7 +309,7 @@ export default function TurnosPage() {
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <p className="text-gray-500">No tienes turnos {statusFilter !== 'todos' ? `con estado "${statusFilter}"` : ''}</p>
             <button
-              onClick={() => router.push('/reserva')}
+              onClick={() => setIsModalOpen(true)}
               className="mt-4 bg-primary text-white px-6 py-2 rounded-md"
             >
               Reservar Ahora
@@ -212,7 +354,7 @@ export default function TurnosPage() {
                       {(turno.estado === 'pendiente' || turno.estado === 'confirmado') && (
                         <button
                           onClick={() => handleCancelTurno(turno._id)}
-                          className="px-3 py-1 bg-white border border-red-500 text-red-500 rounded-md text-sm hover:bg-red-50"
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                         >
                           Cancelar
                         </button>
@@ -222,7 +364,9 @@ export default function TurnosPage() {
                   
                   <div className="mt-3 flex justify-between items-center">
                     <div>
-                      <p className="text-gray-600 text-sm">Precio: ${turno.servicio.precio}</p>
+                      <p className="text-sm text-gray-500">
+                        Precio: ${turno.servicio.precio}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -231,6 +375,16 @@ export default function TurnosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Reserva */}
+      <ReservaModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchTurnos}
+      />
     </>
   );
-}
+};
+
+// Use Next.js dynamic import with SSR disabled to prevent hydration issues
+export default dynamic(() => Promise.resolve(TurnosPage), { ssr: false });

@@ -2,12 +2,13 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { IUser } from '@/types';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: IUser | null;
   isAdmin: boolean;
   isAuthLoaded: boolean;
-  login: (userData: IUser, token: string) => void;
+  login: (token: string, userData: IUser) => void;
   logout: () => void;
 }
 
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
   const isAdmin = !!user?.is_admin;
+  const router = useRouter();
 
   useEffect(() => {
     // Intenta cargar el usuario desde localStorage al iniciar
@@ -48,10 +50,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (userData: IUser, token: string) => {
-    // Verificar que el usuario tenga un ID antes de guardarlo
-    if (!userData._id) {
-      console.error('Intento de login con datos de usuario incompletos');
+  useEffect(() => {
+    console.log("Auth state changed:", {
+      isLoggedIn: !!user,
+      userId: user?._id,
+      isAuthLoaded
+    });
+  }, [user, isAuthLoaded]);
+
+  const login = async (token: string, userData: any) => {
+    console.log("Login function called with:", { 
+      token: !!token,
+      userData: !!userData,
+      userHasId: userData && '_id' in userData
+    });
+    
+    // If userData is missing _id but has email, fetch complete user data
+    if (userData && !userData._id && userData.email) {
+      try {
+        console.log("User data missing ID, attempting to fetch complete user data by email");
+        const apiUserUrl = `${process.env.NEXT_PUBLIC_API_USER}/correo/${userData.email}`;
+        console.log("Fetching user data from:", apiUserUrl);
+        
+        const userResponse = await fetch(apiUserUrl);
+        if (userResponse.ok) {
+          const completeUserData = await userResponse.json();
+          console.log("Retrieved complete user data:", !!completeUserData);
+          
+          // Use the complete user data with ID
+          userData = completeUserData;
+        } else {
+          console.error("Failed to fetch complete user data");
+        }
+      } catch (error) {
+        console.error("Error fetching complete user data:", error);
+      }
+    }
+    
+    // Final check for _id
+    if (!userData || !userData._id) {
+      console.error('Intento de login con datos de usuario incompletos', userData);
       return;
     }
     
@@ -59,6 +97,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('token', token);
+    
+    // Verify storage was successful
+    console.log("Login state saved:", {
+      contextUser: !!userData,
+      localStorageUser: !!localStorage.getItem('user'),
+      localStorageToken: !!localStorage.getItem('token')
+    });
   };
 
   const logout = () => {

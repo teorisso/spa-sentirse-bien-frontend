@@ -1,4 +1,5 @@
-export type UserRole = 'admin' | 'cliente';
+export type UserRole = 'admin' | 'cliente' | 'profesional' | undefined;
+export type TurnoStatus = 'pendiente' | 'confirmado' | 'cancelado' | 'realizado';
 
 // Tipo base que coincide con el backend
 export interface IUserBase {
@@ -34,26 +35,34 @@ export interface IService extends IServiceBase {
     _id: string;
 }
 
-export type TurnoStatus = 'pendiente' | 'confirmado' | 'cancelado' | 'realizado';
-
-// Tipo base que enviamos al backend al crear/editar turnos
+// Tipo base para turnos
 export interface ITurnoBase {
-    cliente: string; // ObjectId como string en el frontend
-    servicio: string; // ObjectId como string en el frontend
-    fecha: Date | string; // Flexible para permitir ambos formatos
+    cliente: string;
+    servicio: string;
+    fecha: Date | string;
     hora: string;
     estado: TurnoStatus;
 }
 
-// Tipo expandido que recibimos del backend con los objetos populados
+// ITurno con la misma estructura que en interfaces.ts para mantener compatibilidad
 export interface ITurno {
+    _id: string;
+    cliente: string;
+    servicio: string;
+    fecha: Date;
+    hora: string;
+    estado: TurnoStatus;
+    map(arg0: (turno: ITurno, index: number) => JSX.Element): import("react").ReactNode;
+}
+
+// Tipo expandido con objetos populados (puedes usarlo en componentes específicos)
+export interface ITurnoPopulated {
     _id: string;
     cliente: {
         _id: string;
         first_name: string;
         last_name: string;
         email?: string;
-        // Otros campos posibles que devuelve el backend
     };
     servicio: {
         _id: string;
@@ -63,10 +72,9 @@ export interface ITurno {
         Image?: string;
         tipo?: string;
     };
-    fecha: string | Date; // Podría venir como string o Date
+    fecha: Date | string;
     hora: string;
     estado: TurnoStatus;
-    // Otros campos posibles
 }
 
 // Tipo para la creación de turnos desde el frontend

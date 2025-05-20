@@ -101,7 +101,9 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
                   <span>${priceRange.min}</span>
                   <span>${priceRange.max}</span>
                 </div>
+                <label htmlFor="price-range-slider" className="sr-only">Ajustar precio máximo</label>
                 <input
+                  id="price-range-slider"
                   type="range"
                   min="0"
                   max="100000"
@@ -109,6 +111,8 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
                   value={priceRange.max}
                   onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })}
                   className="w-full accent-accent"
+                  aria-label="Ajustar precio máximo"
+                  title="Desliza para ajustar el precio máximo"
                 />
               </div>
             </div>

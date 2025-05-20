@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { IService } from '@/models/interfaces';
+import { IService } from '@/types'; // Updated import path
 
 
 // Hook para hacer fetch a una API

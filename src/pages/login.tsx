@@ -33,7 +33,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        await login(data.token, data.user);
+        // Fix the parameter order
+        await login(data.token, data.user); // Correct order: token first, user data second
         setMensaje('Inicio de sesión exitoso');
         setTipoMensaje('exito');
         
