@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
+import PageHero from '@/components/PageHero';
+import { motion } from 'framer-motion';
+import { User, Lock } from 'lucide-react';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -109,132 +112,170 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto">
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">Mi Perfil</h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Actualiza tu información personal
-                    </p>
+        <>
+            <PageHero
+                title="Mi Perfil"
+                description="Gestiona tu información personal y contraseña"
+            />
+
+            <main className="bg-white font-roboto py-16">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6">
+                    <motion.div 
+                        className="grid md:grid-cols-1 gap-8"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        {/* Datos personales */}
+                        <motion.div 
+                            className="bg-[#F5F9F8] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-accent/20 p-8 backdrop-blur-sm"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.1 }}
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-primary" />
+                                </div>
+                                <h2 className="text-2xl font-lora font-semibold text-primary relative">
+                                    <span className="relative z-10">Información Personal</span>
+                                    <div className="absolute -bottom-2 left-0 w-20 h-1 bg-accent/30 rounded-full"></div>
+                                </h2>
+                            </div>
+
+                            <form onSubmit={handleUpdateProfile} className="space-y-5">
+                                <div className="space-y-2">
+                                    <label htmlFor="firstName" className="block text-sm font-medium text-primary/90">
+                                        Nombre
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="firstName"
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="lastName" className="block text-sm font-medium text-primary/90">
+                                        Apellido
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="lastName"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="email" className="block text-sm font-medium text-primary/90">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        id="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="pt-4">
+                                    <motion.button
+                                        type="submit"
+                                        className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all disabled:opacity-50"
+                                        disabled={isLoading}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                    >
+                                        {isLoading ? 'Actualizando...' : 'Actualizar Perfil'}
+                                    </motion.button>
+                                </div>
+                            </form>
+                        </motion.div>
+
+                        {/* Cambio de contraseña */}
+                        <motion.div 
+                            className="bg-[#F5F9F8] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-accent/20 p-8 backdrop-blur-sm"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                                    <Lock className="w-5 h-5 text-primary" />
+                                </div>
+                                <h2 className="text-2xl font-lora font-semibold text-primary relative">
+                                    <span className="relative z-10">Cambiar Contraseña</span>
+                                    <div className="absolute -bottom-2 left-0 w-20 h-1 bg-accent/30 rounded-full"></div>
+                                </h2>
+                            </div>
+
+                            <form onSubmit={handleUpdatePassword} className="space-y-5">
+                                <div className="space-y-2">
+                                    <label htmlFor="currentPassword" className="block text-sm font-medium text-primary/90">
+                                        Contraseña Actual
+                                    </label>
+                                    <input
+                                        type="password"
+                                        id="currentPassword"
+                                        value={formData.currentPassword}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="newPassword" className="block text-sm font-medium text-primary/90">
+                                        Nueva Contraseña
+                                    </label>
+                                    <input
+                                        type="password"
+                                        id="newPassword"
+                                        value={formData.newPassword}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-primary/90">
+                                        Confirmar Nueva Contraseña
+                                    </label>
+                                    <input
+                                        type="password"
+                                        id="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="pt-4">
+                                    <motion.button
+                                        type="submit"
+                                        className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all disabled:opacity-50"
+                                        disabled={isLoading}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                    >
+                                        {isLoading ? 'Actualizando...' : 'Cambiar Contraseña'}
+                                    </motion.button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
                 </div>
-
-                <div className="bg-white shadow rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                        <form onSubmit={handleUpdateProfile} className="space-y-6">
-                            <div>
-                                <label htmlFor="firstName" className="label">
-                                    Nombre
-                                </label>
-                                <input
-                                    type="text"
-                                    id="firstName"
-                                    value={formData.firstName}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="lastName" className="label">
-                                    Apellido
-                                </label>
-                                <input
-                                    type="text"
-                                    id="lastName"
-                                    value={formData.lastName}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="email" className="label">
-                                    Email
-                                </label>
-                                <input
-                                    type="email"
-                                    id="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? 'Actualizando...' : 'Actualizar Perfil'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div className="bg-white shadow rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                        <h3 className="text-lg font-medium text-gray-900">Cambiar Contraseña</h3>
-                        <form onSubmit={handleUpdatePassword} className="mt-6 space-y-6">
-                            <div>
-                                <label htmlFor="currentPassword" className="label">
-                                    Contraseña Actual
-                                </label>
-                                <input
-                                    type="password"
-                                    id="currentPassword"
-                                    value={formData.currentPassword}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="newPassword" className="label">
-                                    Nueva Contraseña
-                                </label>
-                                <input
-                                    type="password"
-                                    id="newPassword"
-                                    value={formData.newPassword}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="confirmPassword" className="label">
-                                    Confirmar Nueva Contraseña
-                                </label>
-                                <input
-                                    type="password"
-                                    id="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                    className="input mt-1"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? 'Actualizando...' : 'Cambiar Contraseña'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+            </main>
+        </>
     );
-} 
+}
