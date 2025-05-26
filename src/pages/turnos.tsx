@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
 import ReservaModal from '@/components/ReservaModal';
 import dynamic from 'next/dynamic';
+import { FileText } from 'lucide-react';
 
 // Create a client-side only version of the page to avoid hydration errors
 const TurnosPage = () => {
@@ -62,6 +63,9 @@ const TurnosPage = () => {
       setLoading(false);
       return;
     }
+    
+    // Definir el timeout que falta
+    const timeout = 15000; // 15 segundos de timeout para la petición
     
     try {
       const token = localStorage.getItem('token');
@@ -241,6 +245,173 @@ const TurnosPage = () => {
     }
   };
 
+  const handlePrintTurno = (turno: ITurnoPopulated) => {
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime().toString();
+    const printWindow = window.open(windowUrl, uniqueName);
+    
+    if (printWindow) {
+      // Formatear fecha
+      const fecha = new Date(turno.fecha);
+      const fechaFormateada = format(fecha, "dd 'de' MMMM 'de' yyyy", { locale: es });
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Turno - Spa Sentirse Bien</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 20px;
+              }
+              .header h1 {
+                color: #7D8C88;
+                margin-bottom: 5px;
+              }
+              .logo {
+                max-width: 150px;
+                margin-bottom: 15px;
+              }
+              .turno-details {
+                margin-bottom: 30px;
+              }
+              .turno-details h2 {
+                color: #7D8C88;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 10px;
+              }
+              .detail-row {
+                display: flex;
+                margin-bottom: 15px;
+              }
+              .detail-label {
+                font-weight: bold;
+                width: 150px;
+              }
+              .status {
+                display: inline-block;
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-weight: bold;
+                font-size: 14px;
+                text-transform: uppercase;
+              }
+              .status-pendiente {
+                color: #92400E;
+              }
+              .status-confirmado {
+                color: #065F46;
+              }
+              .status-cancelado {
+                color: #B91C1C;
+              }
+              .status-realizado {
+                color: #1E40AF;
+              }
+              .footer {
+                margin-top: 50px;
+                text-align: center;
+                font-size: 14px;
+                color: #666;
+                border-top: 1px solid #ddd;
+                padding-top: 20px;
+              }
+              .price {
+                font-size: 24px;
+                font-weight: bold;
+                color: #7D8C88;
+              }
+              @media print {
+                body {
+                  padding: 0;
+                  margin: 15mm;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Spa Sentirse Bien</h1>
+              <p>Comprobante de Turno</p>
+            </div>
+            
+            <div class="turno-details">
+              <h2>Datos del Turno</h2>
+              
+              <div class="detail-row">
+                <div class="detail-label">Cliente:</div>
+                <div>${user?.first_name} ${user?.last_name}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Email:</div>
+                <div>${user?.email}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Servicio:</div>
+                <div>${turno.servicio.nombre}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Descripción:</div>
+                <div>${turno.servicio.descripcion}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Fecha:</div>
+                <div>${fechaFormateada}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Hora:</div>
+                <div>${turno.hora}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Estado:</div>
+                <div>
+                  <span class="status status-${turno.estado}">
+                    ${turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Precio:</div>
+                <div class="price">$${turno.servicio.precio}</div>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p>Gracias por confiar en Spa Sentirse Bien</p>
+              <p>Este comprobante fue generado el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+              <p>Para cualquier consulta, comunícate con nosotros al teléfono: (011) 4444-5555</p>
+            </div>
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Esperar un momento para que se carguen los estilos antes de imprimir
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  };
+
   const filteredTurnos = turnos.filter(turno => {
     if (statusFilter === 'todos') return true;
     return turno.estado === statusFilter;
@@ -324,12 +495,7 @@ const TurnosPage = () => {
               return (
                 <div 
                   key={turno._id}
-                  className={`p-5 rounded-lg shadow border-l-4 ${
-                    turno.estado === 'pendiente' ? 'border-yellow-400 bg-yellow-50' :
-                    turno.estado === 'confirmado' ? 'border-green-400 bg-green-50' :
-                    turno.estado === 'cancelado' ? 'border-red-400 bg-red-50' :
-                    'border-blue-400 bg-blue-50'
-                  }`}
+                  className="p-5 rounded-lg shadow border-l-4 border-primary bg-white hover:bg-gray-50 transition"
                 >
                   <div className="flex flex-col md:flex-row justify-between">
                     <div className="mb-4 md:mb-0">
@@ -368,6 +534,16 @@ const TurnosPage = () => {
                         Precio: ${turno.servicio.precio}
                       </p>
                     </div>
+                    
+                    {/* Botón de impresión reposicionado */}
+                    <button
+                      onClick={() => handlePrintTurno(turno)}
+                      className="px-2 py-1 bg-gray-100 text-primary rounded hover:bg-gray-200 text-xs flex items-center gap-1 transition"
+                      title="Imprimir comprobante"
+                    >
+                      <FileText size={12} />
+                      <span>Imprimir</span>
+                    </button>
                   </div>
                 </div>
               );
