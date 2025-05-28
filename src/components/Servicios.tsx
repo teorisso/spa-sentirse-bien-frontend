@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import Link from 'next/link'; // This import might become unused or changed
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { IService } from '../types';
@@ -11,9 +11,10 @@ interface ServiciosProps {
   isAdmin?: boolean;
   onEdit?: (service: IService) => void;
   onDelete?: (id: string) => void;
+  onReservarClick?: (service: IService) => void; // Add this prop
 }
 
-export default function Servicios({ services, isAdmin, onEdit, onDelete }: ServiciosProps) {
+export default function Servicios({ services, isAdmin, onEdit, onDelete, onReservarClick }: ServiciosProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
 
@@ -161,11 +162,12 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete }: Servi
                           </div>
                           <div className="flex justify-end">
                             {!isAdmin && ( // Solo mostrar el botón de "Reservar" si no es admin
-                              <Link href="/reserva">
-                                <button className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-all text-sm font-medium">
-                                  Reservar
-                                </button>
-                              </Link>
+                              <button 
+                                onClick={() => onReservarClick?.(service)} // Modified to call onReservarClick
+                                className="bg-primary text-white px-5 py-2 rounded-lg hover:bg-primary/90 transition-all text-sm font-medium"
+                              >
+                                Reservar
+                              </button>
                             )}
                           </div>
                           {isAdmin && (
