@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IService } from '@/types';
 import { DayPicker } from 'react-day-picker';
-import { format, addDays, isAfter } from 'date-fns';
+import { format, addDays, isAfter, addHours, isBefore, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -26,8 +26,9 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   
-  // Date constraints (48 hours in advance)
-  const minDate = addDays(new Date(), 2);
+  // Date constraints - Usar días completos en lugar de horas exactas
+  const today = new Date();
+  const minDate = addDays(startOfDay(today), 2); // 2 días completos desde hoy
   
   // Available time slots
   const availableTimes = [
@@ -65,10 +66,51 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
     }
   };
 
+  // Validate 48-hour rule for selected date and time - MEJORADO
+  const validateTurnoTime = (date: Date, time: string): boolean => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const turnoDateTime = new Date(date);
+    turnoDateTime.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    const minimumTime = addHours(now, 48);
+    
+    // Agregar un pequeño margen de tolerancia (1 hora)
+    return turnoDateTime.getTime() > minimumTime.getTime();
+  };
+
+  // Filter available times based on selected date - MEJORADO
+  const getAvailableTimes = (): string[] => {
+    if (!selectedDate) return availableTimes;
+    
+    // Si la fecha seleccionada es hoy o mañana, filtrar horarios
+    const today = startOfDay(new Date());
+    const tomorrow = addDays(today, 1);
+    const dayAfterTomorrow = addDays(today, 2);
+    
+    const selectedDay = startOfDay(selectedDate);
+    
+    // Si es pasado mañana o posterior, todos los horarios están disponibles
+    if (selectedDay >= dayAfterTomorrow) {
+      return availableTimes;
+    }
+    
+    // Si es hoy o mañana, filtrar por horarios que cumplan las 48h
+    return availableTimes.filter(time => {
+      return validateTurnoTime(selectedDate, time);
+    });
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!selectedService || !selectedDate || !selectedTime || !user) {
       setFormError('Por favor complete todos los campos');
+      return;
+    }
+
+    // Final validation before submission
+    if (!validateTurnoTime(selectedDate, selectedTime)) {
+      setFormError('El turno debe reservarse con al menos 48 horas de anticipación.');
       return;
     }
 
@@ -226,6 +268,11 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
       return (
         <div className="space-y-6">
           <h2 className="text-xl font-lora text-primary">Selecciona una fecha</h2>
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-sm">
+              ⚠️ Los turnos deben reservarse con al menos 48 horas de anticipación
+            </p>
+          </div>
           <div className="flex justify-center">
             <div className="p-4 bg-white rounded-lg shadow-sm">
               <DayPicker
@@ -233,13 +280,14 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 locale={es}
-                fromDate={minDate}
+                fromDate={today} // Cambiar a today en lugar de minDate
                 disabled={[
                   { dayOfWeek: [0] }, // Domingo deshabilitado
+                  { before: today } // Solo deshabilitar fechas pasadas
                 ]}
                 modifiers={{
                   available: (date) => {
-                    return isAfter(date, minDate);
+                    return date >= today;
                   }
                 }}
                 classNames={{
@@ -256,24 +304,55 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
     
     // Step 3: Time selection and confirmation
     if (step === 3) {
+      const availableTimesForDate = getAvailableTimes();
+      
       return (
         <div className="space-y-6">
           <h2 className="text-xl font-lora text-primary">Selecciona la hora</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {availableTimes.map((time) => (
-              <button
-                key={time}
-                className={`py-2 px-3 border rounded-lg text-center transition-all ${
-                  selectedTime === time 
-                    ? 'bg-primary text-white border-primary' 
-                    : 'border-gray-200 hover:border-primary'
-                }`}
-                onClick={() => setSelectedTime(time)}
-              >
-                {time}
-              </button>
-            ))}
-          </div>
+          
+          {availableTimesForDate.length === 0 ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">
+                No hay horarios disponibles para esta fecha que cumplan con la restricción de 48 horas.
+                Por favor, selecciona otra fecha.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {availableTimesForDate.map((time) => (
+                  <button
+                    key={time}
+                    className={`py-2 px-3 border rounded-lg text-center transition-all ${
+                      selectedTime === time 
+                        ? 'bg-primary text-white border-primary' 
+                        : 'border-gray-200 hover:border-primary'
+                    }`}
+                    onClick={() => setSelectedTime(time)}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Show unavailable times grayed out SOLO si hay algunos disponibles */}
+              {availableTimes.length > availableTimesForDate.length && availableTimesForDate.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-2">Horarios no disponibles (menos de 48hs):</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {availableTimes.filter(time => !availableTimesForDate.includes(time)).map((time) => (
+                      <div
+                        key={time}
+                        className="py-2 px-3 border border-gray-200 rounded-lg text-center text-gray-400 bg-gray-50"
+                      >
+                        {time}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           
           {/* Booking summary */}
           {selectedService && selectedDate && selectedTime && (
@@ -302,12 +381,18 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
 
   // Navigation buttons based on current step
   const renderNavigation = () => {
+    const availableTimesForDate = selectedDate ? getAvailableTimes() : [];
+    const canProceedToStep3 = step === 2 && selectedDate && availableTimesForDate.length > 0;
+    
     return (
       <div className="flex justify-between mt-6">
         {step > 1 && (
           <button
             type="button"
-            onClick={() => setStep(step - 1)}
+            onClick={() => {
+              setStep(step - 1);
+              setFormError(null);
+            }}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Anterior
@@ -328,11 +413,15 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
                 setFormError('Por favor, selecciona una fecha');
                 return;
               }
+              if (step === 2 && !canProceedToStep3) {
+                setFormError('La fecha seleccionada no tiene horarios disponibles');
+                return;
+              }
               setFormError(null);
               setStep(step + 1);
             }}
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
-            disabled={(step === 1 && !selectedService) || (step === 2 && !selectedDate)}
+            disabled={(step === 1 && !selectedService) || (step === 2 && !canProceedToStep3)}
           >
             Siguiente
           </button>

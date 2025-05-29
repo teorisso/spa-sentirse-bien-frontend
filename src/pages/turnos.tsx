@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import PageHero from '@/components/PageHero';
-import { format } from 'date-fns';
+import { format, addHours, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
@@ -438,6 +438,17 @@ const TurnosPage = () => {
     );
   }
 
+  const canCancelTurno = (turno: ITurnoPopulated): boolean => {
+    const fecha = new Date(turno.fecha);
+    const [hours, minutes] = turno.hora.split(':').map(Number);
+    fecha.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    const cancelLimit = addHours(now, 48);
+    
+    return fecha > cancelLimit;
+  };
+
   return (
     <>
       <PageHero
@@ -489,8 +500,8 @@ const TurnosPage = () => {
         ) : (
           <div className="space-y-6">
             {filteredTurnos.map((turno) => {
-              // Asegúrate de que fecha sea un objeto Date
               const fecha = new Date(turno.fecha);
+              const canCancel = canCancelTurno(turno);
               
               return (
                 <div 
@@ -503,6 +514,11 @@ const TurnosPage = () => {
                       <p className="text-gray-600 mt-1">
                         {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} - {turno.hora}
                       </p>
+                      {!canCancel && (turno.estado === 'pendiente' || turno.estado === 'confirmado') && (
+                        <p className="text-amber-600 text-sm mt-1">
+                          ⚠️ Este turno ya no se puede cancelar (menos de 48hs)
+                        </p>
+                      )}
                     </div>
                     
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -517,7 +533,7 @@ const TurnosPage = () => {
                         {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                       </span>
                       
-                      {(turno.estado === 'pendiente' || turno.estado === 'confirmado') && (
+                      {(turno.estado === 'pendiente' || turno.estado === 'confirmado') && canCancel && (
                         <button
                           onClick={() => handleCancelTurno(turno._id)}
                           className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
