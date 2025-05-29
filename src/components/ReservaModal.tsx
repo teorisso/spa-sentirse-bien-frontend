@@ -388,23 +388,20 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
           )}
           
           <div className="flex justify-center">
-            <div className="p-2 bg-white rounded-lg shadow-sm">
+            <div className="p-2 bg-white rounded-lg shadow-sm calendar-container">
               <DayPicker
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 locale={es}
-                fromDate={today}
+                fromDate={minDate}
                 disabled={[
                   { dayOfWeek: [0] }, // Domingo deshabilitado
-                  { before: today }
                 ]}
                 classNames={{
-                  day_selected: 'bg-primary text-white',
+                  day_selected: 'rdp-day_selected',
                   day_today: 'font-bold text-accent',
-                  day: 'hover:bg-accent/20 transition-colors',
-                  day_disabled: 'text-gray-300 cursor-not-allowed',
-                  day_outside: 'text-gray-400',
+                  day: 'hover:bg-accent/20 transition-colors'
                 }}
               />
             </div>
