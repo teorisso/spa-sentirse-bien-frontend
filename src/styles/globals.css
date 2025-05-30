@@ -46,3 +46,19 @@ html {
 ::-webkit-scrollbar {
   display: none;
 }
+
+/* Estilos para react-day-picker */
+.rdp-day_selected {
+  background-color: #7D8C88 !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.rdp-day_selected:hover {
+  background-color: #6B7A76 !important;
+}
+
+.rdp-day_selected:focus {
+  background-color: #7D8C88 !important;
+  outline: 2px solid #7D8C88 !important;
+}

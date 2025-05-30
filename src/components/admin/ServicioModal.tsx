@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IService } from '@/types';
+import Image from 'next/image';
 
 interface ServicioModalProps {
   isOpen: boolean;
@@ -17,6 +18,9 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
     tipo: '',
     Image: ''
   });
+  
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (servicio) {
@@ -27,6 +31,7 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
         tipo: servicio.tipo,
         Image: servicio.Image
       });
+      setPreviewImage(servicio.Image);
     } else {
       setFormData({
         nombre: '',
@@ -35,8 +40,26 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
         tipo: '',
         Image: ''
       });
+      setPreviewImage(null);
     }
   }, [servicio]);
+
+  // Función para manejar selección de archivo
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Crear URL temporal para la vista previa
+    const previewUrl = URL.createObjectURL(file);
+    setPreviewImage(previewUrl);
+    
+    // Formatear la ruta para guardar en la base de datos
+    const fileName = file.name.replace(/\s+/g, '-').toLowerCase();
+    const imageUrl = `/images/${fileName}`;
+    
+    // Actualizar formData con la URL de la imagen
+    setFormData({ ...formData, Image: imageUrl });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +90,7 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
             exit={{ scale: 0.9, opacity: 0 }}
             className="bg-white rounded-lg p-6 w-full max-w-md"
           >
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-primary">
                 {servicio ? 'Editar Servicio' : 'Nuevo Servicio'}
               </h2>
@@ -100,6 +123,7 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  required
                   rows={3}
                   title="Descripción del servicio"
                   placeholder="Ingrese la descripción del servicio"
@@ -138,17 +162,32 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">URL de la imagen</label>
-                <input
-                  type="text"
-                  value={formData.Image}
-                  onChange={(e) => setFormData({ ...formData, Image: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-                  required
-                  title="URL de la imagen del servicio"
-                  placeholder="Ingrese la URL de la imagen"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Imagen del servicio</label>
+                
+                <div className="space-y-3">
+                  {/* Input para seleccionar archivo */}
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition-colors"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Selecciona una imagen desde tu ordenador
+                    </p>
+                  </div>
+                  
+                  {/* Mostrar la ruta que se guardará */}
+                  {formData.Image && (
+                    <p className="text-xs text-gray-600">
+                      Ruta de imagen: {formData.Image}
+                    </p>
+                  )}
+                </div>
               </div>
+              
 
               <div className="flex justify-end gap-4 mt-6">
                 <button
@@ -171,4 +210,4 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
       )}
     </AnimatePresence>
   );
-} 
+}
