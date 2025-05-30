@@ -184,7 +184,7 @@ export default function ServiciosPage() {
             setIsModalOpen(false);
             setSelectedService(null);
           }}
-          servicio={selectedService}
+          servicio={selectedService || undefined}
           onSave={handleSaveService}
         />
       )}
