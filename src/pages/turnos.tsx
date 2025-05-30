@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import PageHero from '@/components/PageHero';
-import { format, addHours, isBefore } from 'date-fns';
+import { format, addHours, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
@@ -12,7 +12,6 @@ import ReservaModal from '@/components/ReservaModal';
 import dynamic from 'next/dynamic';
 import { FileText } from 'lucide-react';
 
-// Create a client-side only version of the page to avoid hydration errors
 const TurnosPage = () => {
   const { user, isAuthLoaded } = useAuth();
   const router = useRouter();
@@ -27,12 +26,11 @@ const TurnosPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   useEffect(() => {
-    // Prevent hydration issues by setting this after the component mounts
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!isMounted) return; // Skip server-side rendering
+    if (!isMounted) return;
 
     console.log("Effect running, auth state:", { 
       user: !!user, 
@@ -40,13 +38,11 @@ const TurnosPage = () => {
       token: typeof window !== 'undefined' ? !!localStorage.getItem('token') : false 
     });
     
-    // Only proceed when auth is fully loaded
     if (!isAuthLoaded) {
       console.log("Auth still loading, waiting...");
       return;
     }
     
-    // Now check if user exists
     if (!user) {
       console.log("No user found after auth loaded, redirecting to login");
       toast.error('Debes iniciar sesión para ver tus turnos');
@@ -55,7 +51,7 @@ const TurnosPage = () => {
     }
     
     fetchTurnos();
-  }, [user, isAuthLoaded, isMounted]); // Add isMounted to dependencies
+  }, [user, isAuthLoaded, isMounted, router]);
 
   const fetchTurnos = async (retryCount = 0, maxRetries = 3) => {
     if (!user?._id) {
@@ -64,8 +60,7 @@ const TurnosPage = () => {
       return;
     }
     
-    // Definir el timeout que falta
-    const timeout = 15000; // 15 segundos de timeout para la petición
+    const timeout = 15000;
     
     try {
       const token = localStorage.getItem('token');
@@ -77,7 +72,6 @@ const TurnosPage = () => {
         return;
       }
       
-      // Use token as URL parameter to avoid CORS issues with Authorization header
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}?token=${token}`, {
         method: 'GET',
         headers: {
@@ -89,28 +83,22 @@ const TurnosPage = () => {
       
       console.log('Response status:', res.status);
       
-      // Check for HTML response
       const contentType = res.headers.get('content-type');
       console.log('Content-Type:', contentType);
       
-      // Try to parse response text first to debug
       const responseText = await res.text();
       console.log('Response body preview:', responseText.substring(0, 200));
       
       if (contentType && contentType.includes('text/html')) {
-        // Provide more specific error info
         console.error('Server returned HTML instead of JSON. HTML preview:', responseText.substring(0, 300));
         
-        // Verificar si es un problema de inicio de Render
         if (responseText.includes('application is starting') || 
             responseText.includes('building')) {
           throw new Error('El servidor está iniciando. Por favor espera unos momentos e intenta nuevamente.');
         }
         
-        // Verificar si parece un error de autenticación
         if (responseText.includes('login') || responseText.includes('unauthorized') ||
             responseText.includes('not authorized')) {
-          // Limpiar token y datos de usuario localmente
           localStorage.removeItem('token');
           toast.error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
           router.push('/login');
@@ -120,7 +108,6 @@ const TurnosPage = () => {
         throw new Error('El servidor devolvió HTML en lugar de JSON. Posible problema de autenticación.');
       }
       
-      // Now try to parse as JSON
       let data;
       try {
         data = JSON.parse(responseText);
@@ -134,51 +121,40 @@ const TurnosPage = () => {
       }
       
       if (Array.isArray(data)) {
-        // Filtrar los turnos del usuario en el frontend
         const userTurnos = data.filter(turno => 
           turno.cliente === user._id || 
           turno.cliente?._id === user._id
         );
         setTurnos(userTurnos);
       } else {
+        setTurnos([]);
       }
       setLoading(false);
     } catch (error) {
-      // Combina ambos bloques catch aquí
-    
-      // Primero maneja los errores de AbortError (anteriormente en el primer catch)
       if (error instanceof Error && error.name === 'AbortError') {
         console.log(`Request timed out after ${timeout / 1000} seconds`);
-        // Don't throw here, just retry
         if (retryCount < maxRetries) {
           console.log('Timeout occurred, trying again...');
           toast.loading(`El servidor está tardando en responder. Reintentando automáticamente...`);
           
-          // Shorter delay for timeout retries
           setTimeout(() => {
             toast.dismiss();
             fetchTurnos(retryCount + 1, maxRetries);
-          }, 1000); // Just a short pause before retry
+          }, 1000);
           return;
         }
         error = new Error('La solicitud tomó demasiado tiempo y fue cancelada después de varios intentos');
       }
 
-      // Ahora maneja todos los tipos de errores (lo que estaba en el segundo catch)
       console.error('Full error:', error);
       
-      // If this was a network error and we haven't exceeded max retries, try again
       if ((error instanceof TypeError && error.message.includes('Failed to fetch')) && 
           retryCount < maxRetries) {
         
-        // Increase max retries to 3 (from 2) for Render's cold start
-        // Create a toast ID but don't auto-dismiss it
         toast.loading(`El servidor parece estar iniciando. Reintentando en ${(retryCount + 1) * 5} segundos...`);
         
-        // Increase delay for longer server bootup time
-        const delay = (retryCount + 1) * 5000; // 5, 10, 15 seconds
+        const delay = (retryCount + 1) * 5000;
         
-        // Try again with longer backoff
         setTimeout(() => {
           toast.dismiss();
           fetchTurnos(retryCount + 1, maxRetries);
@@ -186,7 +162,6 @@ const TurnosPage = () => {
         return;
       }
       
-      // More specific error messages depending on the error
       let errorMessage = 'No se pudieron cargar tus turnos';
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         errorMessage = 'No se pudo conectar con el servidor. El servidor puede estar iniciando o inactivo. Por favor, inténtalo de nuevo en unos momentos.';
@@ -214,18 +189,14 @@ const TurnosPage = () => {
         return;
       }
       
-      // Primero obtenemos el turno actual
       const turnoResponse = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/${turnoId}?token=${token}`);
       if (!turnoResponse.ok) {
         throw new Error('No se pudo obtener la información del turno');
       }
       
       const turnoActual = await turnoResponse.json();
-      
-      // Actualizamos solo el estado
       turnoActual.estado = 'cancelado';
       
-      // Enviamos el turno completo con el estado actualizado
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${turnoId}?token=${token}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -251,8 +222,9 @@ const TurnosPage = () => {
     const printWindow = window.open(windowUrl, uniqueName);
     
     if (printWindow) {
-      // Formatear fecha
-      const fecha = new Date(turno.fecha);
+      // CORREGIDO: Manejo consistente de fechas
+      const fechaString = typeof turno.fecha === 'string' ? turno.fecha : turno.fecha.toISOString();
+      const fecha = parseISO(fechaString.split('T')[0]);
       const fechaFormateada = format(fecha, "dd 'de' MMMM 'de' yyyy", { locale: es });
       
       printWindow.document.write(`
@@ -277,10 +249,6 @@ const TurnosPage = () => {
               .header h1 {
                 color: #7D8C88;
                 margin-bottom: 5px;
-              }
-              .logo {
-                max-width: 150px;
-                margin-bottom: 15px;
               }
               .turno-details {
                 margin-bottom: 30px;
@@ -405,11 +373,23 @@ const TurnosPage = () => {
       printWindow.document.close();
       printWindow.focus();
       
-      // Esperar un momento para que se carguen los estilos antes de imprimir
       setTimeout(() => {
         printWindow.print();
       }, 500);
     }
+  };
+
+  const canCancelTurno = (turno: ITurnoPopulated): boolean => {
+    // CORREGIDO: Manejo consistente de fechas
+    const fechaString = typeof turno.fecha === 'string' ? turno.fecha : turno.fecha.toISOString();
+    const fecha = parseISO(fechaString.split('T')[0]);
+    const [hours, minutes] = turno.hora.split(':').map(Number);
+    fecha.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    const cancelLimit = addHours(now, 48);
+    
+    return fecha > cancelLimit;
   };
 
   const filteredTurnos = turnos.filter(turno => {
@@ -417,7 +397,6 @@ const TurnosPage = () => {
     return turno.estado === statusFilter;
   });
 
-  // If not mounted yet, return a simple loading state to avoid hydration issues
   if (!isMounted) {
     return <div className="flex justify-center items-center min-h-screen">Cargando...</div>;
   }
@@ -438,17 +417,6 @@ const TurnosPage = () => {
     );
   }
 
-  const canCancelTurno = (turno: ITurnoPopulated): boolean => {
-    const fecha = new Date(turno.fecha);
-    const [hours, minutes] = turno.hora.split(':').map(Number);
-    fecha.setHours(hours, minutes, 0, 0);
-    
-    const now = new Date();
-    const cancelLimit = addHours(now, 48);
-    
-    return fecha > cancelLimit;
-  };
-
   return (
     <>
       <PageHero
@@ -457,7 +425,6 @@ const TurnosPage = () => {
       />
       
       <div className="max-w-6xl mx-auto p-6 my-12">
-        {/* Filtros y botón de reserva */}
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <label htmlFor="statusFilter" className="mr-2 text-primary font-medium">Filtrar por estado:</label>
@@ -500,7 +467,9 @@ const TurnosPage = () => {
         ) : (
           <div className="space-y-6">
             {filteredTurnos.map((turno) => {
-              const fecha = new Date(turno.fecha);
+              // CORREGIDO: Manejo consistente de fechas
+              const fechaString = typeof turno.fecha === 'string' ? turno.fecha : turno.fecha.toISOString();
+              const fecha = parseISO(fechaString.split('T')[0]);
               const canCancel = canCancelTurno(turno);
               
               return (
@@ -551,7 +520,6 @@ const TurnosPage = () => {
                       </p>
                     </div>
                     
-                    {/* Botón de impresión reposicionado */}
                     <button
                       onClick={() => handlePrintTurno(turno)}
                       className="px-2 py-1 bg-gray-100 text-primary rounded hover:bg-gray-200 text-xs flex items-center gap-1 transition"
@@ -568,7 +536,6 @@ const TurnosPage = () => {
         )}
       </div>
 
-      {/* Modal de Reserva */}
       <ReservaModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -578,5 +545,4 @@ const TurnosPage = () => {
   );
 };
 
-// Use Next.js dynamic import with SSR disabled to prevent hydration issues
 export default dynamic(() => Promise.resolve(TurnosPage), { ssr: false });
