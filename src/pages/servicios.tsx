@@ -54,11 +54,11 @@ export default function ServiciosPage() {
     fetchServices();
   }, []);
 
-  const handleEditService = (service: IService) => {
-    if (!isAdmin) return;
-    setSelectedService(service);
-    setIsModalOpen(true);
-  };
+  const handleEditService = (service: IService | null) => {
+  if (!isAdmin) return;
+  setSelectedService(service);
+  setIsModalOpen(true);
+};
 
   const handleDeleteService = async (id: string) => {
     if (!isAdmin || !confirm('¿Estás seguro de que deseas eliminar este servicio?')) return;
@@ -174,10 +174,6 @@ export default function ServiciosPage() {
                 Agregar Nuevo Servicio
               </button>
           )}
-          <details className="mt-4 text-left max-w-2xl mx-auto p-4 bg-gray-50 rounded">
-            <summary className="cursor-pointer text-sm text-gray-500">Información de depuración</summary>
-            <pre className="text-xs mt-2 overflow-auto p-2 bg-gray-100">{JSON.stringify(rawData, null, 2)}</pre>
-          </details>
         </div>
       )}
       
