@@ -189,30 +189,108 @@ const TurnosPage = () => {
         return;
       }
       
-      const turnoResponse = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/${turnoId}?token=${token}`);
-      if (!turnoResponse.ok) {
-        throw new Error('No se pudo obtener la información del turno');
+      // Buscar el turno en el estado actual para obtener toda la información
+      const turnoACancelar = turnos.find(t => t._id === turnoId);
+      if (!turnoACancelar) {
+        toast.error('No se encontró el turno a cancelar');
+        return;
       }
       
-      const turnoActual = await turnoResponse.json();
-      turnoActual.estado = 'cancelado';
+      // Preparar el objeto del turno con el estado actualizado
+      const turnoActualizado = {
+        cliente: typeof turnoACancelar.cliente === 'string' 
+          ? turnoACancelar.cliente 
+          : turnoACancelar.cliente._id,
+        servicio: typeof turnoACancelar.servicio === 'string' 
+          ? turnoACancelar.servicio 
+          : turnoACancelar.servicio._id,
+        fecha: typeof turnoACancelar.fecha === 'string' 
+          ? turnoACancelar.fecha 
+          : turnoACancelar.fecha.toISOString(),
+        hora: turnoACancelar.hora,
+        estado: 'cancelado'
+      };
+      
+      console.log('Enviando datos de cancelación:', turnoActualizado);
       
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${turnoId}?token=${token}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(turnoActual)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(turnoActualizado)
       });
       
+      console.log('Status de respuesta de cancelación:', res.status);
+      
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Error al cancelar el turno');
+        const contentType = res.headers.get('content-type');
+        const responseText = await res.text();
+        
+        console.error('Error en cancelación:', responseText);
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = JSON.parse(responseText);
+            throw new Error(errorData.message || 'Error al cancelar el turno');
+          } catch (parseError) {
+            throw new Error('Error al cancelar el turno');
+          }
+        } else {
+          throw new Error(`Error del servidor: ${res.status}`);
+        }
+      }
+      
+      // Verificar que la respuesta sea JSON válido
+      const responseText = await res.text();
+      if (responseText) {
+        try {
+          const responseData = JSON.parse(responseText);
+          console.log('Respuesta exitosa de cancelación:', responseData);
+        } catch (parseError) {
+          console.warn('Respuesta no es JSON válido, pero la operación fue exitosa');
+        }
       }
       
       toast.success('Turno cancelado con éxito');
-      fetchTurnos();
+      
+      // Actualizar el estado local inmediatamente para mejor UX
+      setTurnos(prevTurnos => 
+        prevTurnos.map(turno => 
+          turno._id === turnoId 
+            ? { ...turno, estado: 'cancelado' as const }
+            : turno
+        )
+      );
+      
+      // Recargar todos los turnos para asegurar consistencia
+      setTimeout(() => {
+        fetchTurnos();
+      }, 500);
+      
     } catch (error) {
-      console.error('Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Error al cancelar el turno');
+      console.error('Error completo al cancelar turno:', error);
+      
+      let errorMessage = 'Error al cancelar el turno';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Mensajes específicos para ciertos tipos de error
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.';
+        } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
+          errorMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        } else if (error.message.includes('48 horas')) {
+          errorMessage = 'Este turno ya no se puede cancelar porque faltan menos de 48 horas.';
+        }
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
