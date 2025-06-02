@@ -3,11 +3,23 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'react-hot-toast';
 import ReservaModal from './ReservaModal';
 
 export default function Hero() {
   const [isReservaModalOpen, setIsReservaModalOpen] = useState(false);
+  const { user } = useAuth();
   const router = useRouter();
+
+  const handleReservaClick = () => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para reservar un turno.');
+      router.push('/login');
+      return;
+    }
+    setIsReservaModalOpen(true);
+  };
 
   const handleReservaSuccess = () => {
     setIsReservaModalOpen(false);
@@ -50,7 +62,7 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.6 }}
           >
             <button 
-              onClick={() => setIsReservaModalOpen(true)}
+              onClick={handleReservaClick}
               className="inline-block px-10 py-4 bg-primary text-white rounded-full shadow-lg font-semibold text-lg hover:bg-[#5A9A98] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
             >
               Reservá tu turno

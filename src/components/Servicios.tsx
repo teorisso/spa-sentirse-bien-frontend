@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Agregar useEffect
 import { IService } from '../types';
 
 interface ServiciosProps {
@@ -15,7 +15,31 @@ interface ServiciosProps {
 
 export default function Servicios({ services, isAdmin, onEdit, onDelete, onReservarClick }: ServiciosProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 100000 });
+  
+  // Calcular rango de precios dinámicamente basado en los servicios
+  const getPriceRange = () => {
+    if (!services || services.length === 0) return { min: 0, max: 60000 };
+    
+    const prices = services
+      .map(service => Number(service.precio))
+      .filter(price => !isNaN(price) && price > 0);
+    
+    if (prices.length === 0) return { min: 0, max: 60000 };
+    
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices)
+    };
+  };
+  
+  const dynamicPriceRange = getPriceRange();
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>(dynamicPriceRange);
+
+  // Actualizar el rango cuando cambien los servicios
+  useEffect(() => {
+    const newRange = getPriceRange();
+    setPriceRange(newRange);
+  }, [services]);
 
   // ✅ Validación: si services es undefined o no es array, mostramos mensaje de error
   if (!services || !Array.isArray(services)) {
@@ -27,6 +51,7 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete, onReser
   }
 
   console.log('Todos los servicios recibidos:', services);
+  console.log('Rango dinámico de precios:', dynamicPriceRange);
   const categoriasUnicas = Array.from(new Set(services.map(s => s.tipo))).filter(Boolean);
   console.log('Categorías únicas encontradas:', categoriasUnicas);
 
@@ -61,11 +86,11 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete, onReser
            <div className="md:w-64 w-full bg-white/80 rounded-3xl shadow-lg p-6 h-fit backdrop-blur-sm border border-accent/20">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-lora font-semibold text-primary">Filtrar por</h3>
-              {(selectedCategory || priceRange.max < 60000) && (
+              {(selectedCategory || priceRange.max < dynamicPriceRange.max) && (
                 <button
                   onClick={() => {
                     setSelectedCategory(null);
-                    setPriceRange({ min: 0, max: 60000 });
+                    setPriceRange(dynamicPriceRange); // Resetear al rango dinámico completo
                   }}
                   className="text-sm text-accent hover:text-accent/80 transition-colors"
                 >
@@ -105,9 +130,9 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete, onReser
                 <input
                   id="price-range-slider"
                   type="range"
-                  min="0"
-                  max="60000"
-                  step="1000"
+                  min={dynamicPriceRange.min}
+                  max={dynamicPriceRange.max}
+                  step="500"
                   value={priceRange.max}
                   onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })}
                   className="w-full accent-accent"

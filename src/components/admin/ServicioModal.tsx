@@ -172,6 +172,7 @@ export default function ServicioModal({ isOpen, onClose, servicio, onSave }: Ser
                       ref={fileInputRef}
                       onChange={handleFileChange}
                       accept="image/*"
+                      title="Seleccionar imagen del servicio"
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition-colors"
                     />
                     <p className="mt-1 text-xs text-gray-500">

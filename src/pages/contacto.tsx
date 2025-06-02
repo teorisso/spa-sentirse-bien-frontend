@@ -57,9 +57,10 @@ export default function Contacto() {
               
               <form onSubmit={handleSubmit} className="space-y-6 flex-grow flex flex-col">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-primary/90">Nombre completo</label>
+                  <label htmlFor="nombre" className="block text-sm font-medium text-primary/90">Nombre completo</label>
                   <input
                     type="text"
+                    id="nombre"
                     name="nombre"
                     value={form.nombre}
                     onChange={handleChange}
@@ -68,9 +69,10 @@ export default function Contacto() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-primary/90">Correo electrónico</label>
+                  <label htmlFor="email" className="block text-sm font-medium text-primary/90">Correo electrónico</label>
                   <input
                     type="email"
+                    id="email"
                     name="email"
                     value={form.email}
                     onChange={handleChange}
@@ -79,8 +81,9 @@ export default function Contacto() {
                   />
                 </div>
                 <div className="space-y-2 flex-grow">
-                  <label className="block text-sm font-medium text-primary/90">Tu mensaje</label>
+                  <label htmlFor="mensaje" className="block text-sm font-medium text-primary/90">Tu mensaje</label>
                   <textarea
+                    id="mensaje"
                     name="mensaje"
                     value={form.mensaje}
                     onChange={handleChange}
