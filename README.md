@@ -1,4 +1,4 @@
-**Requerimientos Funcionales (actualizado)**
+**Requerimientos Funcionales**
 
 1. **Gestión de usuarios y roles**
 
@@ -64,7 +64,7 @@
 
 ---
 
-**Requerimientos No Funcionales** (sin cambios)
+**Requerimientos No Funcionales**
 
 * Usabilidad amigable
 * Diseño coherente con imagen corporativa
