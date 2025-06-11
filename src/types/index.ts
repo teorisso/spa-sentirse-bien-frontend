@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'cliente' | 'profesional' | undefined;
+export type UserRole = 'admin' | 'cliente' | 'profesional';
 export type TurnoStatus = 'pendiente' | 'confirmado' | 'cancelado' | 'realizado';
 
 // Tipo base que coincide con el backend

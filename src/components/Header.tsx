@@ -46,7 +46,7 @@ export default function Header({ transparent = true }: HeaderProps) {
     { href: '/servicios', label: 'SERVICIOS' },
     { href: '/conocenos', label: 'CONÓCENOS' },
     { href: '/contacto', label: 'CONTACTO' },
-    { href: isAdmin ? '/admin/turnos' : '/turnos', label: isAdmin ? 'TURNOS' : 'MIS TURNOS' },
+    { href: '/turnos', label: 'MIS TURNOS' },
   ];
 
   return (
@@ -120,7 +120,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                 <AnimatePresence>
                   {isAuthenticated && showMenu && (
                     <motion.div 
-                      className="absolute right-0 mt-2 w-44 bg-white text-primary shadow-lg border border-soft2 rounded-xl z-50 text-sm font-normal overflow-hidden"
+                      className="absolute right-0 mt-2 w-48 bg-white text-primary shadow-lg border border-soft2 rounded-xl z-50 text-sm font-normal overflow-hidden"
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
@@ -133,6 +133,36 @@ export default function Header({ transparent = true }: HeaderProps) {
                       >
                         Mi perfil
                       </Link>
+                      {isAdmin && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Administración
+                          </div>
+                          <Link
+                            href="/admin/usuarios"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            onClick={() => setShowMenu(false)}
+                          >
+                            Gestión de Usuarios
+                          </Link>
+                          <Link
+                            href="/admin/turnos"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            onClick={() => setShowMenu(false)}
+                          >
+                            Gestión de Turnos
+                          </Link>
+                          <Link
+                            href="/servicios"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            onClick={() => setShowMenu(false)}
+                          >
+                            Gestión de Servicios
+                          </Link>
+                        </>
+                      )}
+                      <div className="border-t border-gray-200 my-1"></div>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora"
@@ -189,6 +219,34 @@ export default function Header({ transparent = true }: HeaderProps) {
                     >
                       Mi perfil
                     </Link>
+                    {isAdmin && (
+                      <>
+                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider">
+                          Administración
+                        </div>
+                        <Link
+                          href="/admin/usuarios"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Gestión de Usuarios
+                        </Link>
+                        <Link
+                          href="/admin/turnos"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Gestión de Turnos
+                        </Link>
+                        <Link
+                          href="/servicios"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Gestión de Servicios
+                        </Link>
+                      </>
+                    )}
                     <button
                       onClick={() => {
                         handleLogout();
