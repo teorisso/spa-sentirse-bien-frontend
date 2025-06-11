@@ -15,6 +15,7 @@ export default function Header({ transparent = true }: HeaderProps) {
   const { logout, user } = useAuth();
   const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin';
+  const isProfessional = user?.role === 'profesional';
   const [showMenu, setShowMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -133,6 +134,18 @@ export default function Header({ transparent = true }: HeaderProps) {
                       >
                         Mi perfil
                       </Link>
+                      {isProfessional && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <Link
+                            href="/profesional/turnos"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora"
+                            onClick={() => setShowMenu(false)}
+                          >
+                            Agenda
+                          </Link>
+                        </>
+                      )}
                       {isAdmin && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
@@ -219,6 +232,20 @@ export default function Header({ transparent = true }: HeaderProps) {
                     >
                       Mi perfil
                     </Link>
+                    {isProfessional && (
+                      <>
+                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider">
+                          Administración
+                        </div>
+                        <Link
+                          href="/profesional/turnos"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Agenda
+                        </Link>
+                      </>
+                    )}
                     {isAdmin && (
                       <>
                         <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider">

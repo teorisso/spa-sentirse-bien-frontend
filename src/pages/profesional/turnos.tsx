@@ -7,57 +7,55 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
-import { X, Calendar, Clock, User, FileText, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, FileText } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 
-export default function AdminTurnosPage() {
-  const { user, isAdmin, isAuthLoaded } = useAuth();
+export default function ProfesionalTurnosPage() {
+  const { user, isAuthLoaded } = useAuth();
   const router = useRouter();
   const [turnos, setTurnos] = useState<ITurnoPopulated[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Estados para filtrado
-  const [statusFilter, setStatusFilter] = useState<string>('todos');
-  const [dateFilter, setDateFilter] = useState<string>('');
-  
+
+  // Filtro de fecha (por defecto hoy)
+  const [dateFilter, setDateFilter] = useState<string>(() => {
+    return format(new Date(), 'yyyy-MM-dd');
+  });
+
+  // Filtro por servicio
+  const [serviceFilter, setServiceFilter] = useState<string>('todos');
+
   useEffect(() => {
-    // Only check authentication after AuthContext has finished loading
-    if (!isAuthLoaded) {
-      return; // Wait until auth is loaded before making decisions
-    }
-    
+    if (!isAuthLoaded) return;
+
     if (!user) {
       toast.error('Debes iniciar sesión para ver esta página');
       router.push('/login');
       return;
     }
-    
-    if (!isAdmin) {
+
+    if (user.role !== 'profesional') {
       toast.error('No tienes permisos para acceder a esta página');
       router.push('/');
       return;
     }
-    
+
     fetchTurnos();
-  }, [user, isAdmin, isAuthLoaded, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isAuthLoaded]);
 
   const fetchTurnos = async (retryCount = 0, maxRetries = 3) => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log("Intentando obtener turnos...");
-      console.log("URL API:", process.env.NEXT_PUBLIC_API_TURNO);
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('No se encontró token de autenticación');
         router.push('/login');
         return;
       }
-      
-      // Usar el token como parámetro de URL en lugar de header (evita problemas CORS)
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}?token=${token}`, {
         method: 'GET',
         headers: {
@@ -66,48 +64,35 @@ export default function AdminTurnosPage() {
         },
         cache: 'no-store'
       });
-      
-      console.log("Status code:", res.status);
-      
-      // Check for HTML response (common when server is starting)
+
       const contentType = res.headers.get('content-type');
       const responseText = await res.text();
-      
+
       if (contentType && contentType.includes('text/html')) {
-        console.error('Servidor devolvió HTML en lugar de JSON');
-        
-        if (responseText.includes('application is starting') || 
-            responseText.includes('building')) {
-          toast.error('El servidor está iniciando. Por favor espera unos momentos e intenta nuevamente.');
-          
-          // Reintentar después de un retraso si no hemos excedido los reintentos máximos
-          if (retryCount < maxRetries) {
-            toast.loading(`Reintentando en ${(retryCount + 1) * 5} segundos...`);
-            setTimeout(() => {
-              toast.dismiss();
-              fetchTurnos(retryCount + 1, maxRetries);
-            }, (retryCount + 1) * 5000);
-            return;
-          }
+        // Servidor iniciando o error de build
+        if (retryCount < maxRetries) {
+          toast.loading(`El servidor está iniciando. Reintentando en ${(retryCount + 1) * 5} segundos...`);
+          setTimeout(() => {
+            toast.dismiss();
+            fetchTurnos(retryCount + 1, maxRetries);
+          }, (retryCount + 1) * 5000);
+          return;
         }
-        
         throw new Error('El servidor respondió con HTML en lugar de JSON');
       }
-      
-      // Analizar respuesta JSON
-      let data;
+
+      let data: any = [];
       try {
         data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Error al analizar JSON:', parseError);
+      } catch (err) {
         throw new Error('La respuesta del servidor no es un JSON válido');
       }
-      
+
       if (!res.ok) {
         throw new Error(data.message || `Error del servidor: ${res.status}`);
       }
-      
-      // enriquecer profesionales
+
+      // Enriquecer profesionales faltantes
       const idsSinPop = data.filter((t: any) => typeof t.profesional === 'string').map((t: any) => t.profesional);
       const uniqueIds = Array.from(new Set(idsSinPop));
       if (uniqueIds.length) {
@@ -121,98 +106,39 @@ export default function AdminTurnosPage() {
               if (typeof t.profesional === 'string' && map[t.profesional]) {
                 t.profesional = map[t.profesional];
               }
-              if (typeof t.profesional === 'string') {
-                t.profesional = null;
-              }
             });
           }
-        } catch {}
+        } catch (e) {
+          console.error('Error enriquecer profesionales', e);
+        }
       }
-      
-      setTurnos(data);
-      setError(null);
-    } catch (error) {
-      console.error("Error completo:", error);
-      
-      // Si es un error de red y no hemos excedido los reintentos, intentar de nuevo
-      if (error instanceof TypeError && error.message.includes('Failed to fetch') && 
-          retryCount < maxRetries) {
-        console.log(`Reintentando (${retryCount + 1}/${maxRetries})...`);
-        toast.loading(`El servidor parece estar inaccesible. Reintentando en ${(retryCount + 1) * 3} segundos...`);
-        
-        setTimeout(() => {
-          toast.dismiss();
-          fetchTurnos(retryCount + 1, maxRetries);
-        }, (retryCount + 1) * 3000);
-        return;
-      }
-      
-      // Mensaje de error específico
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar los turnos';
-      setError(errorMessage);
-      toast.error(errorMessage);
+
+      // Filtrar turnos del profesional logueado
+      const misTurnos = data.filter((t: ITurnoPopulated) => {
+        if (!user) return false;
+        if (typeof t.profesional === 'string') return t.profesional === user._id;
+        return t.profesional?._id === user._id;
+      });
+
+      setTurnos(misTurnos);
+    } catch (err: any) {
+      console.error('Error al obtener turnos', err);
+      const message = err instanceof Error ? err.message : 'Error desconocido al cargar los turnos';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (turnoId: string, newStatus: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('No se encontró token de autenticación');
-        router.push('/login');
-        return;
-      }
-      
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${turnoId}?token=${token}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          estado: newStatus
-        })
-      });
-      
-      if (!res.ok) throw new Error('Error al actualizar el estado');
-      
-      toast.success(`Estado actualizado a ${newStatus}`);
-      fetchTurnos();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al actualizar el estado');
-    }
-  };
-  
-  const handleDeleteTurno = async (turnoId: string) => {
-    if (!confirm('¿Eliminar este turno de forma permanente?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Sin token');
-        return;
-      }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/delete/${turnoId}?token=${token}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) throw new Error('Error al eliminar');
-      toast.success('Turno eliminado');
-      fetchTurnos();
-    } catch (e) {
-      console.error(e);
-      toast.error('No se pudo eliminar');
-    }
-  };
-  
   const handlePrintTurnos = () => {
     const printContent = document.getElementById('turnos-table');
     const windowUrl = 'about:blank';
     const uniqueName = new Date().getTime().toString();
-    
+
     if (printContent) {
       const printWindow = window.open(windowUrl, uniqueName);
-      
+
       printWindow?.document.write(`
         <html>
           <head>
@@ -227,30 +153,33 @@ export default function AdminTurnosPage() {
           </head>
           <body>
             <div class="header">
-              <h1>Listado de Turnos - Spa Sentirse Bien</h1>
-              <p>Fecha: ${format(new Date(), "dd/MM/yyyy")}</p>
+              <h1>Turnos del Día - Spa Sentirse Bien</h1>
+              <p>Fecha: ${format(new Date(dateFilter), 'dd/MM/yyyy')}</p>
             </div>
             ${printContent.outerHTML}
           </body>
         </html>
       `);
-      
+
       printWindow?.document.close();
       printWindow?.print();
     }
   };
 
-  // Filtrado de turnos
+  // Filtrar turnos por fecha seleccionada
   const filteredTurnos = turnos.filter(turno => {
-    // Filtro por estado
-    if (statusFilter !== 'todos' && turno.estado !== statusFilter) return false;
-    
-    // Filtro por fecha
+    // Fecha
     if (dateFilter) {
       const turnoDate = format(new Date(turno.fecha), 'yyyy-MM-dd');
       if (turnoDate !== dateFilter) return false;
     }
-    
+
+    // Servicio
+    if (serviceFilter !== 'todos') {
+      const servicioId = typeof turno.servicio === 'string' ? turno.servicio : turno.servicio._id;
+      if (servicioId !== serviceFilter) return false;
+    }
+
     return true;
   });
 
@@ -258,8 +187,8 @@ export default function AdminTurnosPage() {
     return (
       <>
         <PageHero
-          title="Administración de Turnos"
-          description="Gestiona todos los turnos del spa"
+          title="Mis Turnos"
+          description="Consulta los turnos asignados para el día"
         />
         <div className="flex justify-center items-center min-h-[400px]">
           <p className="text-lg">Cargando turnos...</p>
@@ -272,8 +201,8 @@ export default function AdminTurnosPage() {
     return (
       <>
         <PageHero
-          title="Administración de Turnos"
-          description="Gestiona todos los turnos del spa"
+          title="Mis Turnos"
+          description="Consulta los turnos asignados para el día"
         />
         <div className="flex flex-col justify-center items-center min-h-[400px]">
           <p className="text-lg text-red-600 mb-4">Error: {error}</p>
@@ -291,34 +220,18 @@ export default function AdminTurnosPage() {
   return (
     <>
       <PageHero
-        title="Administración de Turnos"
-        description="Gestiona todos los turnos del spa"
+        title="Mis Turnos"
+        description="Consulta los turnos asignados para el día"
       />
-      
+
       <div className="max-w-7xl mx-auto p-8 my-12">
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-6 border-b">
-            <h2 className="text-2xl font-semibold text-primary">Administración de Turnos</h2>
+            <h2 className="text-2xl font-semibold text-primary">Turnos del Profesional</h2>
           </div>
-          
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-4 p-6 bg-gray-50">
-            <div className="flex items-center gap-2">
-              <label htmlFor="status-filter" className="font-medium">Estado:</label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="p-2 border rounded"
-              >
-                <option value="todos">Todos</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="confirmado">Confirmados</option>
-                <option value="cancelado">Cancelados</option>
-                <option value="realizado">Realizados</option>
-              </select>
-            </div>
-            
+
+          {/* Filtro por fecha */}
+          <div className="flex flex-wrap gap-4 p-6 bg-gray-50 items-center">
             <div className="flex items-center gap-2">
               <label className="font-medium">Fecha:</label>
               <input
@@ -326,7 +239,6 @@ export default function AdminTurnosPage() {
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="p-2 border rounded"
-                placeholder="Selecciona una fecha"
               />
               {dateFilter && (
                 <button 
@@ -340,9 +252,38 @@ export default function AdminTurnosPage() {
                 </button>
               )}
             </div>
-            
+
+            {/* Filtro por servicio */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="service-filter" className="font-medium">Servicio:</label>
+              <select
+                id="service-filter"
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="p-2 border rounded"
+              >
+                <option value="todos">Todos</option>
+                {Array.from(new Set(turnos.map(t => typeof t.servicio === 'string' ? undefined : t.servicio)))
+                  .filter(Boolean)
+                  .map((serv: any) => (
+                    <option key={serv._id} value={serv._id}>{serv.nombre}</option>
+                  ))}
+              </select>
+              {serviceFilter !== 'todos' && (
+                <button 
+                  type="button"
+                  title="Limpiar filtro de servicio"
+                  onClick={() => setServiceFilter('todos')}
+                  className="text-gray-500 hover:text-red-500"
+                >
+                  <X size={16} />
+                  <span className="sr-only">Limpiar filtro de servicio</span>
+                </button>
+              )}
+            </div>
+
             <div className="flex-1"></div>
-            
+
             <button
               onClick={handlePrintTurnos}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded"
@@ -351,7 +292,7 @@ export default function AdminTurnosPage() {
               <span>Imprimir</span>
             </button>
           </div>
-          
+
           {/* Tabla de turnos */}
           <div className="overflow-x-auto">
             <table className="min-w-full" id="turnos-table">
@@ -364,9 +305,6 @@ export default function AdminTurnosPage() {
                     Servicio
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Profesional
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -375,30 +313,23 @@ export default function AdminTurnosPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTurnos.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                      No se encontraron turnos con los filtros seleccionados
+                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      No se encontraron turnos para la fecha seleccionada
                     </td>
                   </tr>
                 ) : (
                   filteredTurnos.map((turno) => (
                     <tr key={turno._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {turno.cliente ? `${turno.cliente.first_name ?? ''} ${turno.cliente.last_name ?? ''}`.trim() || 'Cliente eliminado' : 'Cliente eliminado'}
-                            </div>
-                            <div className="text-xs text-gray-500">{turno.cliente && turno.cliente.email ? turno.cliente.email : 'Sin email'}</div>
-                          </div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {turno.cliente ? `${turno.cliente.first_name ?? ''} ${turno.cliente.last_name ?? ''}`.trim() || 'Cliente eliminado' : 'Cliente eliminado'}
                         </div>
+                        <div className="text-xs text-gray-500">{turno.cliente && turno.cliente.email ? turno.cliente.email : 'Sin email'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{turno.servicio.nombre}</div>
@@ -406,17 +337,9 @@ export default function AdminTurnosPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <User size={16} className="text-gray-400 mr-2" />
-                          <div className="text-sm text-gray-900">
-                            {turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
                           <Calendar size={16} className="text-gray-400 mr-2" />
                           <div className="text-sm text-gray-900">
-                            {format(new Date(turno.fecha), 'dd/MM/yyyy')}
+                            {format(new Date(turno.fecha), 'dd/MM/yyyy', { locale: es })}
                           </div>
                         </div>
                       </td>
@@ -438,22 +361,6 @@ export default function AdminTurnosPage() {
                           {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm flex items-center gap-2">
-                        <select
-                          value={turno.estado}
-                          onChange={(e) => handleStatusChange(turno._id, e.target.value)}
-                          className="p-2 border rounded text-sm min-w-[120px] w-full max-w-[150px]"	
-                          title="Cambiar estado del turno"
-                        >
-                          <option value="pendiente">Pendiente</option>
-                          <option value="confirmado">Confirmar</option>
-                          <option value="cancelado">Cancelar</option>
-                          <option value="realizado">Realizado</option>
-                        </select>
-                        <button onClick={() => handleDeleteTurno(turno._id)} title="Eliminar turno" className="p-2 text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
                     </tr>
                   ))
                 )}
@@ -464,4 +371,4 @@ export default function AdminTurnosPage() {
       </div>
     </>
   );
-}
+} 
