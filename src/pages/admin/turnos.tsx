@@ -107,6 +107,25 @@ export default function AdminTurnosPage() {
         throw new Error(data.message || `Error del servidor: ${res.status}`);
       }
       
+      // enriquecer profesionales
+      const idsSinPop = data.filter((t: any) => typeof t.profesional === 'string').map((t: any) => t.profesional);
+      const uniqueIds = Array.from(new Set(idsSinPop));
+      if (uniqueIds.length) {
+        try {
+          const resUsers = await fetch(`${process.env.NEXT_PUBLIC_API_USER}`);
+          if (resUsers.ok) {
+            const usuarios = await resUsers.json();
+            const map: Record<string, any> = {};
+            usuarios.forEach((u: any) => (map[u._id] = u));
+            data.forEach((t: any) => {
+              if (typeof t.profesional === 'string' && map[t.profesional]) {
+                t.profesional = map[t.profesional];
+              }
+            });
+          }
+        } catch {}
+      }
+      
       setTurnos(data);
       setError(null);
     } catch (error) {
@@ -322,6 +341,9 @@ export default function AdminTurnosPage() {
                     Servicio
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Profesional
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -358,6 +380,14 @@ export default function AdminTurnosPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{turno.servicio.nombre}</div>
                         <div className="text-sm text-gray-500">${turno.servicio.precio}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <User size={16} className="text-gray-400 mr-2" />
+                          <div className="text-sm text-gray-900">
+                            {typeof turno.profesional === 'string' ? turno.profesional : `${turno.profesional.first_name} ${turno.profesional.last_name}`}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">

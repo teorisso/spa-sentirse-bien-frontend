@@ -125,6 +125,30 @@ const TurnosPage = () => {
           turno.cliente === user._id || 
           turno.cliente?._id === user._id
         );
+
+        // Enriquecer con profesionales si vienen sin poblar
+        const profesIdsFaltantes = userTurnos
+          .filter(t => typeof t.profesional === 'string')
+          .map(t => t.profesional as string);
+        const uniqueIds = Array.from(new Set(profesIdsFaltantes));
+
+        if (uniqueIds.length) {
+          try {
+            const resProfs = await fetch(`${process.env.NEXT_PUBLIC_API_USER}`);
+            if (resProfs.ok) {
+              const allUsers = await resProfs.json();
+              const profMap: Record<string, any> = {};
+              allUsers.forEach((u: any) => {
+                profMap[u._id] = u;
+              });
+              userTurnos.forEach(t => {
+                if (typeof t.profesional === 'string' && profMap[t.profesional]) {
+                  (t as any).profesional = profMap[t.profesional];
+                }
+              });
+            }
+          } catch {}
+        }
         setTurnos(userTurnos);
       } else {
         setTurnos([]);
@@ -408,6 +432,10 @@ const TurnosPage = () => {
                 <div class="detail-label">Servicio:</div>
                 <div>${turno.servicio.nombre}</div>
               </div>
+              <div class="detail-row">
+                <div class="detail-label">Profesional:</div>
+                <div>${typeof turno.profesional === 'string' ? '' : `${turno.profesional.first_name} ${turno.profesional.last_name}`}</div>
+              </div>
               
               <div class="detail-row">
                 <div class="detail-label">Descripción:</div>
@@ -558,6 +586,7 @@ const TurnosPage = () => {
                   <div className="flex flex-col md:flex-row justify-between">
                     <div className="mb-4 md:mb-0">
                       <h3 className="text-lg font-semibold">{turno.servicio.nombre}</h3>
+                      <p className="text-sm text-gray-500 mt-0.5">Profesional: {typeof turno.profesional === 'string' ? '' : `${turno.profesional.first_name} ${turno.profesional.last_name}`}</p>
                       <p className="text-gray-600 mt-1">
                         {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} - {turno.hora}
                       </p>

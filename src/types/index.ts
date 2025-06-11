@@ -39,6 +39,7 @@ export interface IService extends IServiceBase {
 export interface ITurnoBase {
     cliente: string;
     servicio: string;
+    profesional: string;
     fecha: Date | string;
     hora: string;
     estado: TurnoStatus;
@@ -49,6 +50,7 @@ export interface ITurno {
     _id: string;
     cliente: string;
     servicio: string;
+    profesional: string;
     fecha: Date;
     hora: string;
     estado: TurnoStatus;
@@ -72,6 +74,13 @@ export interface ITurnoPopulated {
         Image?: string;
         tipo?: string;
     };
+    profesional: {
+        _id: string;
+        first_name: string;
+        last_name: string;
+        email?: string;
+        role: UserRole;
+    };
     fecha: Date | string;
     hora: string;
     estado: TurnoStatus;
@@ -81,6 +90,7 @@ export interface ITurnoPopulated {
 export interface ICreateTurnoRequest {
     cliente: string;
     servicio: string;
+    profesional: string;
     fecha: string | Date;
     hora: string;
     estado: TurnoStatus;
