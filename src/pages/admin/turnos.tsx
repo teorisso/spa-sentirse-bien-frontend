@@ -121,6 +121,9 @@ export default function AdminTurnosPage() {
               if (typeof t.profesional === 'string' && map[t.profesional]) {
                 t.profesional = map[t.profesional];
               }
+              if (typeof t.profesional === 'string') {
+                t.profesional = null;
+              }
             });
           }
         } catch {}
@@ -371,9 +374,9 @@ export default function AdminTurnosPage() {
                         <div className="flex items-center">
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {turno.cliente.first_name} {turno.cliente.last_name}
+                              {turno.cliente ? `${turno.cliente.first_name ?? ''} ${turno.cliente.last_name ?? ''}`.trim() || 'Cliente eliminado' : 'Cliente eliminado'}
                             </div>
-                            <div className="text-xs text-gray-500">{turno.cliente.email}</div>
+                            <div className="text-xs text-gray-500">{turno.cliente && turno.cliente.email ? turno.cliente.email : 'Sin email'}</div>
                           </div>
                         </div>
                       </td>
@@ -385,7 +388,7 @@ export default function AdminTurnosPage() {
                         <div className="flex items-center">
                           <User size={16} className="text-gray-400 mr-2" />
                           <div className="text-sm text-gray-900">
-                            {typeof turno.profesional === 'string' ? turno.profesional : `${turno.profesional.first_name} ${turno.profesional.last_name}`}
+                            {turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}
                           </div>
                         </div>
                       </td>

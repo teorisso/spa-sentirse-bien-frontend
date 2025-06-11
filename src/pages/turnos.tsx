@@ -145,6 +145,9 @@ const TurnosPage = () => {
                 if (typeof t.profesional === 'string' && profMap[t.profesional]) {
                   (t as any).profesional = profMap[t.profesional];
                 }
+                if (typeof t.profesional === 'string') {
+                  (t as any).profesional = null;
+                }
               });
             }
           } catch {}
@@ -434,7 +437,7 @@ const TurnosPage = () => {
               </div>
               <div class="detail-row">
                 <div class="detail-label">Profesional:</div>
-                <div>${typeof turno.profesional === 'string' ? '' : `${turno.profesional.first_name} ${turno.profesional.last_name}`}</div>
+                <div>${turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}</div>
               </div>
               
               <div class="detail-row">
@@ -586,7 +589,7 @@ const TurnosPage = () => {
                   <div className="flex flex-col md:flex-row justify-between">
                     <div className="mb-4 md:mb-0">
                       <h3 className="text-lg font-semibold">{turno.servicio.nombre}</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">Profesional: {typeof turno.profesional === 'string' ? '' : `${turno.profesional.first_name} ${turno.profesional.last_name}`}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">Profesional: {turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}</p>
                       <p className="text-gray-600 mt-1">
                         {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} - {turno.hora}
                       </p>
