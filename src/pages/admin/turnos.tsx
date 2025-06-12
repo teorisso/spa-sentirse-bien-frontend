@@ -7,8 +7,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
-import { X, Calendar, Clock, User, FileText, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, User, FileText, Trash2, PlusCircle } from 'lucide-react';
 import PageHero from '@/components/PageHero';
+import ReservaModal from '@/components/ReservaModal';
 
 export default function AdminTurnosPage() {
   const { user, isAdmin, isAuthLoaded } = useAuth();
@@ -16,6 +17,7 @@ export default function AdminTurnosPage() {
   const [turnos, setTurnos] = useState<ITurnoPopulated[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showReserva, setShowReserva] = useState(false);
   
   // Estados para filtrado
   const [statusFilter, setStatusFilter] = useState<string>('todos');
@@ -345,10 +347,18 @@ export default function AdminTurnosPage() {
             
             <button
               onClick={handlePrintTurnos}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-gray-200 text-primary hover:bg-gray-300 transition"
             >
               <FileText size={16} />
               <span>Imprimir</span>
+            </button>
+
+            <button
+              onClick={() => setShowReserva(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded"
+            >
+              <PlusCircle size={16} />
+              <span>Crear turno</span>
             </button>
           </div>
           
@@ -462,6 +472,9 @@ export default function AdminTurnosPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de nueva reserva */}
+      <ReservaModal isOpen={showReserva} onClose={() => setShowReserva(false)} onSuccess={() => { setShowReserva(false); fetchTurnos(); }} />
     </>
   );
 }
