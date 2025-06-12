@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
 import ReservaModal from '@/components/ReservaModal';
+import PagoDebitoModal from '@/components/PagoDebitoModal';
 import dynamic from 'next/dynamic';
 import { FileText, CreditCard, Wallet, Printer } from 'lucide-react';
 
@@ -18,6 +19,8 @@ const TurnosPage = () => {
   const [turnos, setTurnos] = useState<ITurnoPopulated[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
+  const [pagoInfo, setPagoInfo] = useState<{ dateKey: string; amount: number; descuento: boolean } | null>(null);
   
   // For client-side rendering only
   const [isMounted, setIsMounted] = useState(false);
@@ -529,7 +532,7 @@ const TurnosPage = () => {
   const handlePayTurnosDelDia = useCallback(
     (dateKey: string) => {
       const turnosDelDia = groupedTurnos[dateKey] || [];
-      const turnosPagables = turnosDelDia.filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+      const turnosPagables = turnosDelDia.filter((t) => t.estado === 'pendiente');
       const totalDia = turnosPagables.reduce((sum, t) => sum + t.servicio.precio, 0);
 
       if (turnosPagables.length === 0) {
@@ -674,7 +677,7 @@ const TurnosPage = () => {
   // Pagar con débito => actualizar estado de turnos del día
   const handlePagarDebitoDelDia = useCallback(
     async (dateKey: string) => {
-      const turnosDia = (groupedTurnos[dateKey] || []).filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+      const turnosDia = (groupedTurnos[dateKey] || []).filter((t) => t.estado === 'pendiente');
       if (!turnosDia.length) {
         toast.error('No hay turnos pagables ese día');
         return;
@@ -804,7 +807,7 @@ const TurnosPage = () => {
             {sortedDateKeys.map((dateKey) => {
               const fecha = parseISO(dateKey);
               const turnosDelDia = groupedTurnos[dateKey].sort((a, b) => a.hora.localeCompare(b.hora));
-              const turnosPagables = turnosDelDia.filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+              const turnosPagables = turnosDelDia.filter((t) => t.estado === 'pendiente');
               const totalDia = turnosPagables.reduce((sum, t) => sum + t.servicio.precio, 0);
               const eligibleDescuento = turnosPagables.length > 0 && turnosPagables.every(canCancelTurno);
               const precioDebito = eligibleDescuento ? Math.round(totalDia * 0.85) : totalDia;
@@ -816,7 +819,7 @@ const TurnosPage = () => {
                       {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })}
                     </h2>
 
-                    {turnosPagables.length > 0 && (
+                    {turnosDelDia.length > 0 && (
                       <button
                         onClick={() => handlePrintTurnosDelDia(dateKey)}
                         className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-gray-200 text-primary hover:bg-gray-300 transition"
@@ -897,7 +900,10 @@ const TurnosPage = () => {
 
                       {/* Débito */}
                       <button
-                        onClick={() => handlePagarDebitoDelDia(dateKey)}
+                        onClick={() => {
+                          setPagoInfo({ dateKey, amount: precioDebito, descuento: eligibleDescuento });
+                          setIsPagoModalOpen(true);
+                        }}
                         className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-primary text-white hover:bg-primary/90 transition"
                       >
                         <CreditCard size={16} />
@@ -917,6 +923,20 @@ const TurnosPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchTurnos}
+      />
+
+      {/* Modal de Pago con Débito */}
+      <PagoDebitoModal
+        isOpen={isPagoModalOpen}
+        onClose={() => setIsPagoModalOpen(false)}
+        amount={pagoInfo?.amount || 0}
+        discountApplied={pagoInfo?.descuento || false}
+        onPay={() => {
+          if (pagoInfo) {
+            handlePagarDebitoDelDia(pagoInfo.dateKey);
+          }
+          setIsPagoModalOpen(false);
+        }}
       />
     </>
   );
