@@ -8,6 +8,7 @@ import Link from 'next/link';
 import PageHero from '../components/PageHero';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import jwt_decode from 'jwt-decode';
+import UsuarioModal from '@/components/admin/UsuarioModal';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+
+  // Estado para el modal de registro
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleOpenRegisterModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseRegisterModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleRegistered = () => {
+    // Cuando se crea la cuenta, mostramos un mensaje y cerramos
+    setMensaje('Cuenta creada exitosamente. Ahora puedes iniciar sesión.');
+    setTipoMensaje('exito');
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -153,9 +171,13 @@ export default function LoginPage() {
             )}
 
             <div className="text-center text-sm text-[#436E6C]">
-              <Link href="/registro" className="hover:text-[#5A9A98] transition-colors duration-300">
+              <button
+                type="button"
+                onClick={handleOpenRegisterModal}
+                className="hover:text-[#5A9A98] transition-colors duration-300 underline"
+              >
                 ¿No tienes una cuenta? Regístrate
-              </Link>
+              </button>
             </div>
 
             {/* Separador */}
@@ -173,6 +195,19 @@ export default function LoginPage() {
             </div>
           </form>
         </motion.div>
+
+        {/* Modal de Registro */}
+        {isModalOpen && (
+          <UsuarioModal
+            isOpen={isModalOpen}
+            onClose={handleCloseRegisterModal}
+            usuario={null}
+            onSave={() => {
+              handleRegistered();
+              handleCloseRegisterModal();
+            }}
+          />
+        )}
       </main>
     </>
   );

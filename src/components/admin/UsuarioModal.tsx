@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { X, User, Mail, Lock, Shield, Save } from 'lucide-react';
 import { IUser, IUserBase } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { useRouter } from 'next/navigation';
 
 interface UsuarioModalProps {
   isOpen: boolean;
@@ -22,6 +25,10 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
     is_admin: false
   });
   const [showPassword, setShowPassword] = useState(false);
+
+  // Saber si el usuario autenticado es admin
+  const { isAdmin, login } = useAuth();
+  const router = useRouter();
 
   // Reset form when modal opens/closes o cambia el usuario
   useEffect(() => {
@@ -104,10 +111,17 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
     try {
       setLoading(true);
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('No se encontró token de autenticación');
-        return;
+      // Determinar si la acción requiere autenticación (editar o admin creando)
+      const isEditMode = !!usuario;
+      const requiresAuth = isEditMode || isAdmin;
+
+      let token: string | null = null;
+      if (requiresAuth) {
+        token = localStorage.getItem('token');
+        if (!token) {
+          toast.error('No se encontró token de autenticación');
+          return;
+        }
       }
 
       // Preparar datos comunes
@@ -115,8 +129,8 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
         email: formData.email.trim(),
-        role: formData.role,
-        is_admin: formData.is_admin
+        role: isAdmin ? formData.role : 'cliente',
+        is_admin: isAdmin ? formData.is_admin : false
       };
 
       // Incluir contraseña si existe (en edición) o es obligatoria (creación)
@@ -124,10 +138,9 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
         dataToSend.password = formData.password;
       }
 
-      const isEditMode = !!usuario;
       const url = isEditMode
         ? `${process.env.NEXT_PUBLIC_API_USER}/${usuario!._id}?token=${token}`
-        : `${process.env.NEXT_PUBLIC_API_USER}/register`;
+        : `${process.env.NEXT_PUBLIC_API_USER}/register${requiresAuth ? `?token=${token}` : ''}`;
 
       const method = isEditMode ? 'PUT' : 'POST';
 
@@ -169,6 +182,35 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
       setLoading(false);
     }
   };
+
+  // Manejo del registro/login con Google (solo modo creación y usuario no admin)
+  async function handleGoogleRegister(cred: CredentialResponse) {
+    try {
+      if (!cred.credential) return;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_USER}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: cred.credential }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // guardar sesión
+        await login(data.token, data.user);
+        toast.success('Registro e inicio de sesión con Google exitoso');
+        onSave();
+        onClose();
+        router.push('/');
+      } else {
+        toast.error(data.message || 'Error con Google');
+      }
+    } catch (error) {
+      console.error('Google register error', error);
+      toast.error('Error interno de Google');
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -285,43 +327,48 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
               </div>
             </div>
 
-            {/* Role */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Rol *
-              </label>
-              <div className="relative">
-                <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent appearance-none"
-                  required
-                  aria-label="Seleccionar rol de usuario"
-                  title="Seleccionar rol de usuario"
-                >
-                  <option value="cliente">Cliente</option>
-                  <option value="profesional">Profesional</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-            </div>
+            {/* Role y privilegios solo para administradores */}
+            {isAdmin && (
+              <>
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol *
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent appearance-none"
+                      required
+                      aria-label="Seleccionar rol de usuario"
+                      title="Seleccionar rol de usuario"
+                    >
+                      <option value="cliente">Cliente</option>
+                      <option value="profesional">Profesional</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+                </div>
 
-            {/* Is Admin Checkbox */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="is_admin"
-                name="is_admin"
-                checked={formData.is_admin}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-accent focus:ring-accent border-gray-300 rounded"
-              />
-              <label htmlFor="is_admin" className="text-sm font-medium text-gray-700">
-                Privilegios de administrador
-              </label>
-            </div>
+                {/* Is Admin Checkbox */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_admin"
+                    name="is_admin"
+                    checked={formData.is_admin}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-accent focus:ring-accent border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_admin" className="text-sm font-medium text-gray-700">
+                    Privilegios de administrador
+                  </label>
+                </div>
+              </>
+            )}
 
             {/* Submit Button */}
             <div className="flex space-x-3 pt-4">
@@ -348,6 +395,20 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
                 )}
               </button>
             </div>
+
+            {/* Separador y Google login solo para modo creación y usuarios no-admin */}
+            {!isAdmin && !usuario && (
+              <>
+                <div className="my-4 text-center text-sm text-gray-500">o registra con</div>
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleRegister}
+                    onError={() => toast.error('Falló el registro con Google')}
+                    useOneTap
+                  />
+                </div>
+              </>
+            )}
           </form>
         </motion.div>
       </motion.div>
