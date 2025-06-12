@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
 import PageHero from '../components/PageHero';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import jwt_decode from 'jwt-decode';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -52,6 +54,36 @@ export default function LoginPage() {
       setTipoMensaje('error');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  // Manejo del login con Google
+  async function handleGoogleLogin(cred: CredentialResponse) {
+    try {
+      if (!cred.credential) return;
+
+      // Podemos decodificar el id_token si quisiéramos información extra
+
+      // 2. Enviamos el id_token al backend para validarlo / crear usuario
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_USER}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: cred.credential }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        await login(data.token, data.user);
+        router.push('/');
+      } else {
+        setMensaje(data.message || 'Error con Google Login');
+        setTipoMensaje('error');
+      }
+    } catch (error: any) {
+      console.error('Google login error', error);
+      setMensaje('Error interno de Google Login');
+      setTipoMensaje('error');
     }
   }
 
@@ -124,6 +156,20 @@ export default function LoginPage() {
               <Link href="/registro" className="hover:text-[#5A9A98] transition-colors duration-300">
                 ¿No tienes una cuenta? Regístrate
               </Link>
+            </div>
+
+            {/* Separador */}
+            <div className="my-4 text-center text-sm text-[#436E6C]">o ingresa con</div>
+
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleLogin}
+                onError={() => {
+                  setMensaje('Falló el inicio con Google');
+                  setTipoMensaje('error');
+                }}
+                useOneTap
+              />
             </div>
           </form>
         </motion.div>

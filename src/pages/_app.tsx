@@ -8,6 +8,7 @@ import type { AppProps } from 'next/app';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useRouter } from 'next/router';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 function AppContent({ Component, pageProps }: AppProps) {
     const router = useRouter();
@@ -25,8 +26,10 @@ function AppContent({ Component, pageProps }: AppProps) {
 
 export default function App(props: AppProps) {
     return (
-        <AuthProvider>
-            <AppContent {...props} />
-        </AuthProvider>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+            <AuthProvider>
+                <AppContent {...props} />
+            </AuthProvider>
+        </GoogleOAuthProvider>
     );
 }
