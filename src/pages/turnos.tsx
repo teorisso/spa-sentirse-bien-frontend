@@ -674,7 +674,7 @@ const TurnosPage = () => {
     [groupedTurnos, user]
   );
 
-  // Pagar con débito => actualizar estado de turnos del día
+  // Pagar con débito => crear registro de pago y dejar backend confirmar turnos
   const handlePagarDebitoDelDia = useCallback(
     async (dateKey: string) => {
       const turnosDia = (groupedTurnos[dateKey] || []).filter((t) => t.estado === 'pendiente');
@@ -690,29 +690,31 @@ const TurnosPage = () => {
         return;
       }
 
+      // Calcular monto total con descuento si corresponde
+      const eligibleDescuento = turnosDia.every(canCancelTurno);
+      const total = turnosDia.reduce((sum, t) => sum + t.servicio.precio, 0);
+      const montoFinal = eligibleDescuento ? Math.round(total * 0.85) : total;
+
       try {
-        await Promise.all(
-          turnosDia.map(async (t) => {
-            // Enviamos sólo el campo que necesitamos cambiar para evitar la validación de 48 h en backend
-            const turnoActualizado = {
-              estado: 'confirmado' as const,
-            };
+        const pagoBody = {
+          turnos: turnosDia.map((t) => t._id),
+          amount: montoFinal,
+          cliente: user?._id,
+        };
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${t._id}?token=${token}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-              },
-              body: JSON.stringify(turnoActualizado),
-            });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_PAYMENT}/create?token=${token}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(pagoBody),
+        });
 
-            if (!res.ok) {
-              const text = await res.text();
-              throw new Error(`Error ${res.status}: ${text || 'actualizando turno'}`);
-            }
-          })
-        );
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error ${res.status}: ${text || 'registrando pago'}`);
+        }
 
         toast.success('Pago con débito registrado y turnos confirmados');
 
@@ -732,7 +734,7 @@ const TurnosPage = () => {
         toast.error('Error al confirmar el pago');
       }
     },
-    [groupedTurnos, router]
+    [groupedTurnos, router, user, canCancelTurno]
   );
 
   if (!isMounted) {
