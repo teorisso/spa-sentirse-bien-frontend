@@ -14,7 +14,8 @@ import {
   Mail,
   Crown,
   Users,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import UsuarioModal from '@/components/admin/UsuarioModal';
@@ -181,6 +182,11 @@ export default function AdminUsuariosPage() {
     setIsModalOpen(true);
   };
 
+  const handleOpenCreateModal = () => {
+    setEditingUser(null);
+    setIsModalOpen(true);
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
@@ -297,6 +303,15 @@ export default function AdminUsuariosPage() {
                 </div>
               </div>
             </div>
+
+            {/* Botón Crear Usuario */}
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex items-center space-x-2 bg-primary text-white px-4 py-3 rounded-lg shadow-sm hover:bg-primary/90 transition-colors self-start md:self-auto"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Crear usuario</span>
+            </button>
           </div>
 
           {/* Filters */}
@@ -450,7 +465,7 @@ export default function AdminUsuariosPage() {
       </div>
 
       {/* Usuario Modal */}
-      {editingUser && (
+      {isModalOpen && (
         <UsuarioModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
