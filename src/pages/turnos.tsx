@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import PageHero from '@/components/PageHero';
@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
 import ReservaModal from '@/components/ReservaModal';
 import dynamic from 'next/dynamic';
-import { FileText } from 'lucide-react';
+import { FileText, CreditCard, Wallet, Printer } from 'lucide-react';
 
 const TurnosPage = () => {
   const { user, isAuthLoaded } = useAuth();
@@ -506,6 +506,232 @@ const TurnosPage = () => {
     return turno.estado === statusFilter;
   });
 
+  // Agrupar turnos por fecha (YYYY-MM-DD)
+  const groupedTurnos = useMemo(() => {
+    const groups: Record<string, ITurnoPopulated[]> = {};
+    filteredTurnos.forEach((turno) => {
+      const fechaString = typeof turno.fecha === 'string' ? turno.fecha : turno.fecha.toISOString();
+      const dateKey = fechaString.split('T')[0];
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(turno);
+    });
+    return groups;
+  }, [filteredTurnos]);
+
+  // Ordenar fechas ascendentemente
+  const sortedDateKeys = useMemo(() => {
+    return Object.keys(groupedTurnos).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  }, [groupedTurnos]);
+
+  // Handler para pagar los turnos de un día dado
+  const handlePayTurnosDelDia = useCallback(
+    (dateKey: string) => {
+      const turnosDelDia = groupedTurnos[dateKey] || [];
+      const turnosPagables = turnosDelDia.filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+      const totalDia = turnosPagables.reduce((sum, t) => sum + t.servicio.precio, 0);
+
+      if (turnosPagables.length === 0) {
+        toast.error('No hay turnos pendientes para pagar en esta fecha');
+        return;
+      }
+
+      // Aquí podrías redirigir a una página de pago o abrir un modal de pago.
+      // Por ahora redirigimos a una ruta ficticia con query de ids.
+      const ids = turnosPagables.map((t) => t._id).join(',');
+      router.push(`/pago?turnos=${ids}`);
+    },
+    [groupedTurnos, router]
+  );
+
+  // Imprimir todos los turnos de un día
+  const handlePrintTurnosDelDia = useCallback(
+    (dateKey: string) => {
+      const turnosDia = (groupedTurnos[dateKey] || []).sort((a, b) => a.hora.localeCompare(b.hora));
+      if (turnosDia.length === 0) return;
+
+      const fecha = parseISO(dateKey);
+      const fechaFormateadaCab = format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es });
+
+      const htmlTurnos = turnosDia
+        .map((turno) => {
+          const profesional = turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional';
+          return `
+            <div style="margin-bottom:24px;">
+              <h3 style="margin:0;color:#7D8C88;">${turno.servicio.nombre}</h3>
+              <p style="margin:4px 0;font-size:14px;">Profesional: ${profesional}</p>
+              <p style="margin:4px 0;font-size:14px;">Hora: ${turno.hora}</p>
+              <p style="margin:4px 0;font-size:14px;">Precio: $${turno.servicio.precio}</p>
+              <p style="margin:4px 0;font-size:14px;">Estado: ${turno.estado}</p>
+            </div>
+          `;
+        })
+        .join('');
+
+      const printWindow = window.open('about:blank', new Date().getTime().toString());
+      if (!printWindow) return;
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Turnos ${fechaFormateadaCab}</title>
+            <style>
+              body{font-family:Arial,sans-serif;padding:20px;color:#333;}
+              h1{color:#7D8C88;margin-bottom:30px;}
+              hr{border:none;border-top:1px solid #ddd;margin:20px 0;}
+            </style>
+          </head>
+          <body>
+            <h1>Turnos – ${fechaFormateadaCab}</h1>
+            ${htmlTurnos}
+            <hr />
+            <p>Cliente: ${user?.first_name} ${user?.last_name} – ${user?.email}</p>
+            <p style="font-size:12px;color:#666;">Generado el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+          </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+    },
+    [groupedTurnos, user]
+  );
+
+  // Factura por día (pago efectivo)
+  const handleFacturaTurnosDelDia = useCallback(
+    (dateKey: string) => {
+      const turnosDia = (groupedTurnos[dateKey] || []).sort((a, b) => a.hora.localeCompare(b.hora));
+      if (turnosDia.length === 0) return;
+
+      const fecha = parseISO(dateKey);
+      const fechaFormateada = format(fecha, "dd/MM/yyyy", { locale: es });
+
+      const filasServicios = turnosDia
+        .map(
+          (t) => `
+            <tr>
+              <td style="padding:8px;border:1px solid #ddd;">${t.servicio.nombre}</td>
+              <td style="padding:8px;border:1px solid #ddd;">${t.hora}</td>
+              <td style="padding:8px;border:1px solid #ddd;">$${t.servicio.precio}</td>
+            </tr>
+          `
+        )
+        .join('');
+
+      const total = turnosDia.reduce((sum, t) => sum + t.servicio.precio, 0);
+
+      const win = window.open('about:blank', new Date().getTime().toString());
+      if (!win) return;
+
+      win.document.write(`
+        <html>
+          <head>
+            <title>Factura – ${fechaFormateada}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+              h1 { margin-bottom: 0; }
+              h2 { margin-top: 4px; color: #666; font-size: 16px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { text-align: left; }
+              th { background: #f5f5f5; }
+              .tot { text-align: right; font-size: 18px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <h1>Spa Sentirse Bien</h1>
+            <h2>Factura por pago en efectivo – ${fechaFormateada}</h2>
+            <p>Cliente: ${user?.first_name} ${user?.last_name} – ${user?.email}</p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="padding:8px;border:1px solid #ddd;">Servicio</th>
+                  <th style="padding:8px;border:1px solid #ddd;">Hora</th>
+                  <th style="padding:8px;border:1px solid #ddd;">Precio</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filasServicios}
+              </tbody>
+            </table>
+
+            <p class="tot"><strong>Total a abonar (efectivo): $${total}</strong></p>
+
+            <p style="font-size:12px;color:#666;">Emitido el ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+          </body>
+        </html>
+      `);
+
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 500);
+    },
+    [groupedTurnos, user]
+  );
+
+  // Pagar con débito => actualizar estado de turnos del día
+  const handlePagarDebitoDelDia = useCallback(
+    async (dateKey: string) => {
+      const turnosDia = (groupedTurnos[dateKey] || []).filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+      if (!turnosDia.length) {
+        toast.error('No hay turnos pagables ese día');
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Debes iniciar sesión nuevamente');
+        router.push('/login');
+        return;
+      }
+
+      try {
+        await Promise.all(
+          turnosDia.map(async (t) => {
+            // Enviamos sólo el campo que necesitamos cambiar para evitar la validación de 48 h en backend
+            const turnoActualizado = {
+              estado: 'confirmado' as const,
+            };
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_TURNO}/edit/${t._id}?token=${token}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+              },
+              body: JSON.stringify(turnoActualizado),
+            });
+
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error(`Error ${res.status}: ${text || 'actualizando turno'}`);
+            }
+          })
+        );
+
+        toast.success('Pago con débito registrado y turnos confirmados');
+
+        // Actualización optimista del estado local
+        setTurnos((prev) =>
+          prev.map((t) =>
+            turnosDia.find((pd) => pd._id === t._id)
+              ? { ...t, estado: 'confirmado' as const }
+              : t
+          )
+        );
+
+        // Refrescar desde el servidor para mantener consistencia
+        fetchTurnos();
+      } catch (err) {
+        console.error(err);
+        toast.error('Error al confirmar el pago');
+      }
+    },
+    [groupedTurnos, router]
+  );
+
   if (!isMounted) {
     return <div className="flex justify-center items-center min-h-screen">Cargando...</div>;
   }
@@ -574,71 +800,112 @@ const TurnosPage = () => {
             </button>
           </div>
         ) : (
-          <div className="space-y-6">
-            {filteredTurnos.map((turno) => {
-              // CORREGIDO: Manejo consistente de fechas
-              const fechaString = typeof turno.fecha === 'string' ? turno.fecha : turno.fecha.toISOString();
-              const fecha = parseISO(fechaString.split('T')[0]);
-              const canCancel = canCancelTurno(turno);
-              
+          <div className="space-y-10">
+            {sortedDateKeys.map((dateKey) => {
+              const fecha = parseISO(dateKey);
+              const turnosDelDia = groupedTurnos[dateKey].sort((a, b) => a.hora.localeCompare(b.hora));
+              const turnosPagables = turnosDelDia.filter((t) => ['pendiente', 'confirmado'].includes(t.estado));
+              const totalDia = turnosPagables.reduce((sum, t) => sum + t.servicio.precio, 0);
+              const eligibleDescuento = turnosPagables.length > 0 && turnosPagables.every(canCancelTurno);
+              const precioDebito = eligibleDescuento ? Math.round(totalDia * 0.85) : totalDia;
               return (
-                <div 
-                  key={turno._id}
-                  className="p-5 rounded-lg shadow border-l-4 border-primary bg-white hover:bg-gray-50 transition"
-                >
-                  <div className="flex flex-col md:flex-row justify-between">
-                    <div className="mb-4 md:mb-0">
-                      <h3 className="text-lg font-semibold">{turno.servicio.nombre}</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">Profesional: {turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}</p>
-                      <p className="text-gray-600 mt-1">
-                        {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} - {turno.hora}
-                      </p>
-                      {!canCancel && (turno.estado === 'pendiente' || turno.estado === 'confirmado') && (
-                        <p className="text-amber-600 text-sm mt-1">
-                          ⚠️ Este turno ya no se puede cancelar (menos de 48hs)
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                      <span 
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          turno.estado === 'pendiente' ? 'bg-yellow-200 text-yellow-800' :
-                          turno.estado === 'confirmado' ? 'bg-green-200 text-green-800' :
-                          turno.estado === 'cancelado' ? 'bg-red-200 text-red-800' :
-                          'bg-blue-200 text-blue-800'
-                        }`}
+                <div key={dateKey} className="mb-8 rounded-lg border border-gray-200 shadow-sm bg-white">
+                  {/* Header Día con botón imprimir */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-4 bg-gray-100 rounded-t-lg">
+                    <h2 className="text-lg font-bold text-primary">
+                      {format(fecha, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })}
+                    </h2>
+
+                    {turnosPagables.length > 0 && (
+                      <button
+                        onClick={() => handlePrintTurnosDelDia(dateKey)}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-gray-200 text-primary hover:bg-gray-300 transition"
                       >
-                        {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
-                      </span>
-                      
-                      {(turno.estado === 'pendiente' || turno.estado === 'confirmado') && canCancel && (
-                        <button
-                          onClick={() => handleCancelTurno(turno._id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        <Printer size={16} />
+                        <span>Imprimir día</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Lista de turnos del día */}
+                  <div className="space-y-4 p-4">
+                    {turnosDelDia.map((turno) => {
+                      const canCancel = canCancelTurno(turno);
+
+                      return (
+                        <div
+                          key={turno._id}
+                          className="p-4 rounded-md border-l-4 border-primary bg-white hover:bg-gray-50 transition"
                         >
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
+                          <div className="flex flex-col md:flex-row justify-between">
+                            <div className="mb-4 md:mb-0">
+                              <h3 className="text-lg font-semibold">{turno.servicio.nombre}</h3>
+                              <p className="text-sm text-gray-500 mt-0.5">Profesional: {turno.profesional ? `${turno.profesional.first_name} ${turno.profesional.last_name}` : 'Falta asignar profesional'}</p>
+                              <p className="text-gray-600 mt-1">
+                                {turno.hora}
+                              </p>
+                              {!canCancel && (turno.estado === 'pendiente' || turno.estado === 'confirmado') && (
+                                <p className="text-amber-600 text-sm mt-1">
+                                  ⚠️ Este turno ya no se puede cancelar (menos de 48hs)
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                              <span
+                                className={`px-3 py-1 rounded-full text-sm ${
+                                  turno.estado === 'pendiente' ? 'bg-yellow-200 text-yellow-800' :
+                                  turno.estado === 'confirmado' ? 'bg-green-200 text-green-800' :
+                                  turno.estado === 'cancelado' ? 'bg-red-200 text-red-800' :
+                                  'bg-blue-200 text-blue-800'
+                                }`}
+                              >
+                                {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
+                              </span>
+
+                              {(turno.estado === 'pendiente' || turno.estado === 'confirmado') && canCancel && (
+                                <button
+                                  onClick={() => handleCancelTurno(turno._id)}
+                                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-3">
+                            <p className="text-sm text-gray-500">Precio: ${turno.servicio.precio}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  
-                  <div className="mt-3 flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        Precio: ${turno.servicio.precio}
-                      </p>
+
+                  {/* Botones de pago */}
+                  {turnosPagables.length > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+                      {/* Efectivo */}
+                      <button
+                        onClick={() => handleFacturaTurnosDelDia(dateKey)}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-primary text-white hover:bg-primary/90 transition"
+                      >
+                        <Wallet size={16} />
+                        <span>Efectivo</span>
+                        <span className="ml-2 font-semibold">${totalDia}</span>
+                      </button>
+
+                      {/* Débito */}
+                      <button
+                        onClick={() => handlePagarDebitoDelDia(dateKey)}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm bg-primary text-white hover:bg-primary/90 transition"
+                      >
+                        <CreditCard size={16} />
+                        <span>Débito {eligibleDescuento ? '(-15%)' : ''}</span>
+                        <span className="ml-2 font-semibold">${precioDebito}</span>
+                      </button>
                     </div>
-                    
-                    <button
-                      onClick={() => handlePrintTurno(turno)}
-                      className="px-2 py-1 bg-gray-100 text-primary rounded hover:bg-gray-200 text-xs flex items-center gap-1 transition"
-                      title="Imprimir comprobante"
-                    >
-                      <FileText size={12} />
-                      <span>Imprimir</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
               );
             })}
