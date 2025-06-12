@@ -30,19 +30,25 @@ const availableTimes = [
 ];
 
 export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModalProps) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<IService[]>([]);
   const [professionals, setProfessionals] = useState<IUser[]>([]);
+  const [clients, setClients] = useState<IUser[]>([]);
   const [existingTurnos, setExistingTurnos] = useState<ITurnoPopulated[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingProfessionals, setLoadingProfessionals] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [professionalSearch, setProfessionalSearch] = useState('');
 
   // selections
   const [selectedService, setSelectedService] = useState<IService | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<IUser | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState('');
+  const [selectedClient, setSelectedClient] = useState<IUser | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   // fechas
@@ -54,13 +60,17 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
     if (!isOpen) return;
     // reset
     setStep(1);
+    setSelectedClient(null);
     setSelectedService(null);
     setSelectedProfessional(null);
     setSelectedDate(undefined);
     setSelectedTime('');
     setFormError(null);
+    setServiceSearch('');
+    setProfessionalSearch('');
     fetchServices();
     fetchProfessionals();
+    if (isAdmin) fetchClients();
     fetchExistingTurnos();
   }, [isOpen]);
 
@@ -93,6 +103,22 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
       console.error(err);
     } finally {
       setLoadingProfessionals(false);
+    }
+  };
+
+  /* fetch clientes */
+  const fetchClients = async () => {
+    try {
+      setLoadingClients(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_USER}`);
+      if (!res.ok) throw new Error('Error al cargar clientes');
+      const data: IUser[] = await res.json();
+      setClients(data.filter(u => u.role === 'cliente'));
+    } catch (err) {
+      toast.error('No se pudieron cargar los clientes');
+      console.error(err);
+    } finally {
+      setLoadingClients(false);
     }
   };
 
@@ -142,9 +168,23 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
     return availableTimes.filter(time => validateTurnoTime(selectedDate, time) && isTimeSlotOccupied(selectedDate, time, selectedService._id, selectedProfessional._id));
   };
 
+  const filteredClients = clients.filter(c => {
+    const full = `${c.first_name} ${c.last_name}`.toLowerCase();
+    return full.includes(clientSearch.toLowerCase());
+  });
+
+  const filteredServices = services.filter(s => {
+    return s.nombre.toLowerCase().includes(serviceSearch.toLowerCase());
+  });
+
+  const filteredProfessionals = professionals.filter(p => {
+    const full = `${p.first_name} ${p.last_name}`.toLowerCase();
+    return full.includes(professionalSearch.toLowerCase());
+  });
+
   /* submit */
   const handleSubmit = async () => {
-    if (!selectedService || !selectedProfessional || !selectedDate || !selectedTime || !user) {
+    if (!selectedService || !selectedProfessional || !selectedDate || !selectedTime || (!user && !selectedClient)) {
       setFormError('Por favor completa todos los campos');
       return;
     }
@@ -158,7 +198,12 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
     }
 
     try {
-      let clienteId = user._id || JSON.parse(localStorage.getItem('user') || '{}')._id;
+      let clienteId: string | undefined;
+      if (isAdmin) {
+        clienteId = selectedClient?._id;
+      } else {
+        clienteId = user?._id || JSON.parse(localStorage.getItem('user') || '{}')._id;
+      }
       if (!clienteId) throw new Error('No se encontró ID de usuario');
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No se encontró token');
@@ -184,40 +229,89 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
 
   /* render helpers */
   const renderStepContent = () => {
-    if (step === 1) {
+    if (isAdmin && step === 1) {
+      if (loadingClients) return <p>Cargando clientes...</p>;
+      return (
+        <div className="space-y-4">
+          <h2 className="text-xl font-lora text-primary">Selecciona un cliente</h2>
+          <input
+            type="text"
+            placeholder="Buscar cliente por nombre..."
+            value={clientSearch}
+            onChange={e => setClientSearch(e.target.value)}
+            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto">
+            {filteredClients.length === 0 ? (
+              <p className="text-sm text-gray-500">No se encontraron clientes</p>
+            ) : (
+              filteredClients.map(c => (
+                <div key={c._id} className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedClient?._id === c._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`} onClick={() => setSelectedClient(c)}>
+                  <h3 className="text-lg font-medium">{c.first_name} {c.last_name}</h3>
+                  <p className="text-gray-500 text-sm">{c.email}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+    if ((!isAdmin && step === 1) || (isAdmin && step === 2)) {
       if (loadingServices) return <p>Cargando servicios...</p>;
       return (
         <div className="space-y-4">
           <h2 className="text-xl font-lora text-primary">Selecciona un servicio</h2>
+          <input
+            type="text"
+            placeholder="Buscar servicio..."
+            value={serviceSearch}
+            onChange={e => setServiceSearch(e.target.value)}
+            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+          />
           <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto">
-            {services.map(s => (
-              <div key={s._id} className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedService?._id === s._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`} onClick={() => setSelectedService(s)}>
-                <h3 className="text-lg font-medium">{s.nombre}</h3>
-                <p className="text-gray-500 text-sm">{s.descripcion}</p>
-                <p className="mt-2 text-primary font-semibold">${s.precio}</p>
-              </div>
-            ))}
+            {filteredServices.length === 0 ? (
+              <p className="text-sm text-gray-500">No se encontraron servicios</p>
+            ) : (
+              filteredServices.map(s => (
+                <div key={s._id} className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedService?._id === s._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`} onClick={() => setSelectedService(s)}>
+                  <h3 className="text-lg font-medium">{s.nombre}</h3>
+                  <p className="text-gray-500 text-sm">{s.descripcion}</p>
+                  <p className="mt-2 text-primary font-semibold">${s.precio}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       );
     }
-    if (step === 2) {
+    if ((!isAdmin && step === 2) || (isAdmin && step === 3)) {
       if (loadingProfessionals) return <p>Cargando profesionales...</p>;
       return (
         <div className="space-y-4">
           <h2 className="text-xl font-lora text-primary">Selecciona un profesional</h2>
+          <input
+            type="text"
+            placeholder="Buscar profesional..."
+            value={professionalSearch}
+            onChange={e => setProfessionalSearch(e.target.value)}
+            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+          />
           <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto">
-            {professionals.map(p => (
-              <div key={p._id} className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedProfessional?._id === p._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`} onClick={() => setSelectedProfessional(p)}>
-                <h3 className="text-lg font-medium">{p.first_name} {p.last_name}</h3>
-                <p className="text-gray-500 text-sm">{p.email}</p>
-              </div>
-            ))}
+            {filteredProfessionals.length === 0 ? (
+              <p className="text-sm text-gray-500">No se encontraron profesionales</p>
+            ) : (
+              filteredProfessionals.map(p => (
+                <div key={p._id} className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedProfessional?._id === p._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`} onClick={() => setSelectedProfessional(p)}>
+                  <h3 className="text-lg font-medium">{p.first_name} {p.last_name}</h3>
+                  <p className="text-gray-500 text-sm">{p.email}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       );
     }
-    if (step === 3) {
+    if ((!isAdmin && step === 3) || (isAdmin && step === 4)) {
       const available = getAvailableTimes();
       const blocked = getTimesBlockedBy48h();
       const occupied = getOccupiedTimes();
@@ -232,7 +326,7 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
         </div>
       );
     }
-    if (step === 4) {
+    if ((!isAdmin && step === 4) || (isAdmin && step === 5)) {
       const available = getAvailableTimes();
       const blocked = getTimesBlockedBy48h();
       const occupied = getOccupiedTimes();
@@ -254,14 +348,32 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
   };
 
   const renderNavigation = () => {
-    const can2 = !!selectedService;
-    const can3 = !!selectedProfessional;
-    const can4 = !!selectedDate && getAvailableTimes().length > 0;
+    const totalSteps = isAdmin ? 5 : 4;
+    const validations: boolean[] = [];
+    if (isAdmin) {
+      validations.push(!!selectedClient); // paso 1
+    }
+    validations.push(!!selectedService); // servicio
+    validations.push(!!selectedProfessional); // profesional
+    validations.push(!!selectedDate && getAvailableTimes().length > 0); // fecha
+
+    const canCurrent = (stepIndex: number) => validations[stepIndex - 1];
     return (
       <div className="flex justify-between">
         {step > 1 && <button type="button" className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors" onClick={() => { setStep(step - 1); setFormError(null); }}>Anterior</button>}
         <div className="flex-1" />
-        {step < 4 ? <button type="button" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors" onClick={() => { if (step === 1 && !can2) { setFormError('Selecciona un servicio'); return; } if (step === 2 && !can3) { setFormError('Selecciona un profesional'); return; } if (step === 3 && !can4) { setFormError('Seleccione una fecha válida'); return; } setFormError(null); setStep(step + 1); }}>Siguiente</button> : <button type="button" disabled={!selectedService || !selectedProfessional || !selectedDate || !selectedTime} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors" onClick={handleSubmit}>Confirmar Reserva</button>}
+        {step < totalSteps ? (
+          <button type="button" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors" onClick={() => {
+            if (!canCurrent(step)) {
+              setFormError('Completa el paso actual para continuar');
+              return;
+            }
+            setFormError(null);
+            setStep(step + 1);
+          }}>Siguiente</button>
+        ) : (
+          <button type="button" disabled={!(isAdmin ? selectedClient : true) || !selectedService || !selectedProfessional || !selectedDate || !selectedTime} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors" onClick={handleSubmit}>Confirmar Reserva</button>
+        )}
       </div>
     );
   };
@@ -274,7 +386,19 @@ export default function ReservaModal({ isOpen, onClose, onSuccess }: ReservaModa
             {/* header */}
             <div className="p-6 border-b border-gray-200 flex-shrink-0">
               <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-semibold text-primary">Reservar Turno</h2><button onClick={onClose} className="text-gray-500 hover:text-gray-700" title="Cerrar modal">✕</button></div>
-              <div><div className="flex justify-between items-center">{[1,2,3,4].map(n => <div key={n} className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= n ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'}`}>{n}</div>)}</div><div className="relative mt-2"><div className="absolute w-full h-1 bg-gray-200"></div><div className={`absolute h-1 bg-primary transition-all duration-300 ${step===1?'w-0':step===2?'w-1/3':step===3?'w-2/3':'w-full'}`}></div></div></div>
+              {(() => { const totalSteps = isAdmin ? 5 : 4; return (
+                <div>
+                  <div className="flex justify-between items-center">
+                    {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
+                      <div key={n} className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= n ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'}`}>{n}</div>
+                    ))}
+                  </div>
+                  <div className="relative mt-2">
+                    <div className="absolute w-full h-1 bg-gray-200" />
+                    <div className="absolute h-1 bg-primary transition-all duration-300" style={{ width: `${((step - 1) / (totalSteps - 1)) * 100}%` }} />
+                  </div>
+                </div>
+              ); })()}
             </div>
             {/* content */}
             <div className="flex-1 overflow-y-auto p-6">{renderStepContent()}</div>

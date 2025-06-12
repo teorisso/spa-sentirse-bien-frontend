@@ -7,7 +7,7 @@ import { IUser, IUserBase } from '@/types';
 interface UsuarioModalProps {
   isOpen: boolean;
   onClose: () => void;
-  usuario: IUser; // Now required since we only edit
+  usuario?: IUser | null; // Opcional: presente en edición, ausente en creación
   onSave: () => void;
 }
 
@@ -23,19 +23,31 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Reset form when modal opens/closes or usuario changes
+  // Reset form when modal opens/closes o cambia el usuario
   useEffect(() => {
-    if (isOpen && usuario) {
-      // Only editing existing user now
-      setFormData({
-        _id: usuario._id,
-        first_name: usuario.first_name,
-        last_name: usuario.last_name,
-        email: usuario.email,
-        role: usuario.role,
-        is_admin: usuario.is_admin,
-        password: '' // Don't pre-fill password for security
-      });
+    if (isOpen) {
+      if (usuario) {
+        // Modo edición
+        setFormData({
+          _id: usuario._id,
+          first_name: usuario.first_name,
+          last_name: usuario.last_name,
+          email: usuario.email,
+          role: usuario.role,
+          is_admin: usuario.is_admin,
+          password: '' // No pre-llenar contraseña por seguridad
+        });
+      } else {
+        // Modo creación: campos vacíos
+        setFormData({
+          first_name: '',
+          last_name: '',
+          email: '',
+          role: 'cliente',
+          is_admin: false,
+          password: ''
+        });
+      }
     }
   }, [isOpen, usuario]);
 
@@ -73,7 +85,11 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
       toast.error('Ingresa un email válido');
       return false;
     }
-    if (formData.password && formData.password.length < 6) {
+    if (!usuario && formData.password.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return false;
+    }
+    if (usuario && formData.password && formData.password.length < 6) {
       toast.error('La contraseña debe tener al menos 6 caracteres');
       return false;
     }
@@ -94,7 +110,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
         return;
       }
 
-      // Prepare data to send
+      // Preparar datos comunes
       const dataToSend: any = {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
@@ -103,14 +119,17 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
         is_admin: formData.is_admin
       };
 
-      // Only include password if it's provided
+      // Incluir contraseña si existe (en edición) o es obligatoria (creación)
       if (formData.password) {
         dataToSend.password = formData.password;
       }
 
-      // Only editing existing user now
-      const url = `${process.env.NEXT_PUBLIC_API_USER}/${usuario._id}?token=${token}`;
-      const method = 'PUT';
+      const isEditMode = !!usuario;
+      const url = isEditMode
+        ? `${process.env.NEXT_PUBLIC_API_USER}/${usuario!._id}?token=${token}`
+        : `${process.env.NEXT_PUBLIC_API_USER}/register`;
+
+      const method = isEditMode ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
@@ -139,7 +158,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
 
       const result = await response.json();
       
-      toast.success('Usuario actualizado exitosamente');
+      toast.success(isEditMode ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente');
       onSave();
       onClose();
     } catch (error) {
@@ -173,7 +192,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
             <div className="flex items-center space-x-3">
               <User className="h-6 w-6 text-primary" />
               <h2 className="text-xl font-lora font-semibold text-primary">
-                Editar Usuario
+                {usuario ? 'Editar Usuario' : 'Crear Usuario'}
               </h2>
             </div>
             <button
@@ -242,7 +261,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nueva Contraseña (opcional)
+                {usuario ? 'Nueva Contraseña (opcional)' : 'Contraseña *'}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -252,7 +271,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
                   value={formData.password}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                  placeholder="Dejar vacío para mantener actual"
+                  placeholder={usuario ? 'Dejar vacío para mantener actual' : 'Ingresa la contraseña'}
                 />
                 <button
                   type="button"
@@ -324,7 +343,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    <span>Actualizar</span>
+                    <span>{usuario ? 'Actualizar' : 'Crear'}</span>
                   </>
                 )}
               </button>
