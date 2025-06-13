@@ -6,7 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
 import PageHero from '@/components/PageHero';
 import { motion } from 'framer-motion';
-import { User, Lock } from 'lucide-react';
+import { User } from 'lucide-react';
+import UsuarioModal from '@/components/admin/UsuarioModal';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -16,10 +17,24 @@ export default function ProfilePage() {
         firstName: '',
         lastName: '',
         email: '',
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+        // campos solo vistos antes, ya no necesarios
     });
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
+
+    const handleProfileSaved = () => {
+        toast.success('Perfil actualizado');
+        // Refrescar datos locales con los nuevos valores
+        setFormData(prev => ({
+            ...prev,
+            firstName: user?.first_name || prev.firstName,
+            lastName: user?.last_name || prev.lastName,
+            email: user?.email || prev.email
+        }));
+    };
 
     useEffect(() => {
         if (user) {
@@ -69,48 +84,6 @@ export default function ProfilePage() {
         }
     };
 
-    const handleUpdatePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-
-        if (formData.newPassword !== formData.confirmPassword) {
-            toast.error('Las contraseñas no coinciden');
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_USER}/password`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    currentPassword: formData.currentPassword,
-                    newPassword: formData.newPassword
-                })
-            });
-
-            if (!res.ok) {
-                throw new Error('Error al actualizar la contraseña');
-            }
-
-            toast.success('Contraseña actualizada correctamente');
-            setFormData(prev => ({
-                ...prev,
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            }));
-        } catch (error) {
-            toast.error('Error al actualizar la contraseña');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     return (
         <>
             <PageHero
@@ -143,138 +116,45 @@ export default function ProfilePage() {
                                 </h2>
                             </div>
 
-                            <form onSubmit={handleUpdateProfile} className="space-y-5">
-                                <div className="space-y-2">
-                                    <label htmlFor="firstName" className="block text-sm font-medium text-primary/90">
-                                        Nombre
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="firstName"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label htmlFor="lastName" className="block text-sm font-medium text-primary/90">
-                                        Apellido
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="lastName"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label htmlFor="email" className="block text-sm font-medium text-primary/90">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        id="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="pt-4">
-                                    <motion.button
-                                        type="submit"
-                                        className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all disabled:opacity-50"
-                                        disabled={isLoading}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        {isLoading ? 'Actualizando...' : 'Actualizar Perfil'}
-                                    </motion.button>
-                                </div>
-                            </form>
-                        </motion.div>
-
-                        {/* Cambio de contraseña */}
-                        <motion.div 
-                            className="bg-[#F5F9F8] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-accent/20 p-8 backdrop-blur-sm"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                        >
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                                    <Lock className="w-5 h-5 text-primary" />
-                                </div>
-                                <h2 className="text-2xl font-lora font-semibold text-primary relative">
-                                    <span className="relative z-10">Cambiar Contraseña</span>
-                                    <div className="absolute -bottom-2 left-0 w-20 h-1 bg-accent/30 rounded-full"></div>
-                                </h2>
+                            {/* Mostrar datos básicos y botón editar */}
+                            <div className="space-y-4 mb-4 text-primary/90">
+                                <p><strong>Nombre:</strong> {user.first_name}</p>
+                                <p><strong>Apellido:</strong> {user.last_name}</p>
+                                <p><strong>Email:</strong> {user.email}</p>
                             </div>
 
-                            <form onSubmit={handleUpdatePassword} className="space-y-5">
-                                <div className="space-y-2">
-                                    <label htmlFor="currentPassword" className="block text-sm font-medium text-primary/90">
-                                        Contraseña Actual
-                                    </label>
-                                    <input
-                                        type="password"
-                                        id="currentPassword"
-                                        value={formData.currentPassword}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
-                                </div>
+                            <button
+                                onClick={openModal}
+                                className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all"
+                            >
+                                Editar Perfil
+                            </button>
 
+                            {/* Antiguo formulario, opcional, se puede eliminar más tarde */}
+                            {/*
+                            <form onSubmit={handleUpdateProfile} className="space-y-5 hidden">
                                 <div className="space-y-2">
-                                    <label htmlFor="newPassword" className="block text-sm font-medium text-primary/90">
-                                        Nueva Contraseña
-                                    </label>
-                                    <input
-                                        type="password"
-                                        id="newPassword"
-                                        value={formData.newPassword}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
+                                    ...
                                 </div>
-
-                                <div className="space-y-2">
-                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-primary/90">
-                                        Confirmar Nueva Contraseña
-                                    </label>
-                                    <input
-                                        type="password"
-                                        id="confirmPassword"
-                                        value={formData.confirmPassword}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                        className="w-full p-3 rounded-lg border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 bg-[#F5F9F8]/90"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="pt-4">
-                                    <motion.button
-                                        type="submit"
-                                        className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all disabled:opacity-50"
-                                        disabled={isLoading}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        {isLoading ? 'Actualizando...' : 'Cambiar Contraseña'}
-                                    </motion.button>
-                                </div>
-                            </form>
+                            </form>*/}
                         </motion.div>
+
+                        {/* Sección de cambio de contraseña eliminada: ahora se maneja desde el modal */}
                     </motion.div>
                 </div>
+
+                {/* Modal de edición de perfil */}
+                {isModalOpen && (
+                    <UsuarioModal
+                        isOpen={isModalOpen}
+                        onClose={closeModal}
+                        usuario={user}
+                        onSave={() => {
+                            handleProfileSaved();
+                            closeModal();
+                        }}
+                    />
+                )}
             </main>
         </>
     );

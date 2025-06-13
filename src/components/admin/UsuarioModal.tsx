@@ -27,7 +27,7 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
   const [showPassword, setShowPassword] = useState(false);
 
   // Saber si el usuario autenticado es admin
-  const { isAdmin, login } = useAuth();
+  const { isAdmin, login, user: authUser } = useAuth();
   const router = useRouter();
 
   // Reset form when modal opens/closes o cambia el usuario
@@ -171,6 +171,12 @@ export default function UsuarioModal({ isOpen, onClose, usuario, onSave }: Usuar
 
       const result = await response.json();
       
+      // Si el usuario está editando su propio perfil, actualizar AuthContext
+      if (isEditMode && authUser && result._id === authUser._id) {
+        const storedToken = localStorage.getItem('token') || '';
+        login(storedToken, result);
+      }
+
       toast.success(isEditMode ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente');
       onSave();
       onClose();
