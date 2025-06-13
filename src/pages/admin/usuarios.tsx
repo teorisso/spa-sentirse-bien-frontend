@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import UsuarioModal from '@/components/admin/UsuarioModal';
+import LoadingScreen from '@/components/LoadingScreen';
 import { IUser } from '@/types';
 
 export default function AdminUsuariosPage() {
@@ -236,12 +237,11 @@ export default function AdminUsuariosPage() {
 
   if (!isAuthLoaded || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando usuarios...</p>
-        </div>
-      </div>
+      <LoadingScreen
+        title="Gestión de Usuarios"
+        description="Panel de administración"
+        message="Cargando usuarios..."
+      />
     );
   }
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { IUser } from '@/types';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 
 interface AuthContextType {
   user: IUser | null;
@@ -25,6 +26,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
   const isAdmin = !!user?.is_admin;
   const router = useRouter();
+
+  // Referencia para evitar múltiples toasts/redirects simultáneos
+  const hasHandledSessionExpiry = useRef(false);
 
   useEffect(() => {
     // Intenta cargar el usuario desde localStorage al iniciar
@@ -57,6 +61,63 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthLoaded
     });
   }, [user, isAuthLoaded]);
+
+  // Interceptar todas las llamadas fetch para detectar expiración de sesión
+  useEffect(() => {
+    // Evitar doble registro en hot-reload de React en desarrollo
+    if ((window as any).__FETCH_WITH_EXPIRY_HANDLER__) return;
+
+    const originalFetch = window.fetch.bind(window);
+
+    async function fetchWithExpiry(
+      input: RequestInfo | URL,
+      init?: RequestInit
+    ): Promise<Response> {
+      const response = await originalFetch(input, init);
+
+      // Si el backend devuelve 401, verificamos si se debe a token inválido/expirado
+      if (response.status === 401) {
+        try {
+          const cloned = response.clone();
+          const data = await cloned.json();
+          const tokenError = data?.message === 'Invalid token' || data?.message === 'No authentication token provided';
+
+          if (tokenError && !hasHandledSessionExpiry.current) {
+            hasHandledSessionExpiry.current = true;
+
+            // Limpiar sesión local
+            logout();
+
+            // Mostrar mensaje al usuario
+            toast.error('La sesión ha expirado. Por favor inicia sesión nuevamente.');
+
+            // Redirigir al login (evitar redirección si ya estamos allí)
+            if (window.location.pathname !== '/login') {
+              router.push('/login');
+            }
+
+            // Resetear bandera luego de un breve lapso para admitir futuros logins
+            setTimeout(() => {
+              hasHandledSessionExpiry.current = false;
+            }, 3000);
+          }
+        } catch (err) {
+          // No se pudo parsear el cuerpo, omitimos
+        }
+      }
+
+      return response;
+    }
+
+    window.fetch = fetchWithExpiry;
+    (window as any).__FETCH_WITH_EXPIRY_HANDLER__ = true;
+
+    // Cleanup al desmontar
+    return () => {
+      window.fetch = originalFetch;
+      delete (window as any).__FETCH_WITH_EXPIRY_HANDLER__;
+    };
+  }, [logout, router]);
 
   const login = async (token: string, userData: any) => {
     console.log("Login function called with:", { 
@@ -106,11 +167,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const logout = () => {
+  // Declarar logout como función para que esté hoisted y evitar advertencias de uso antes de definir
+  function logout() {
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-  };
+  }
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, isAuthLoaded, login, logout }}>

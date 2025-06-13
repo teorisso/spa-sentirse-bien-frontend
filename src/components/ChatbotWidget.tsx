@@ -62,9 +62,7 @@ const BOT_RESPONSES: Record<string, React.ReactNode> = {
   '💳 ¿Cuáles son los medios de pago?': (
     <ul className="list-disc list-inside space-y-1">
       <li>Efectivo</li>
-      <li>Tarjetas de débito/crédito</li>
-      <li>Transferencia bancaria</li>
-      <li>MercadoPago</li>
+      <li>Tarjetas de débito con un descuento de 15% si se abona antes de las 48hs de la reserva</li>
     </ul>
   ),
   '🙋 Quiero hablar con un humano': (

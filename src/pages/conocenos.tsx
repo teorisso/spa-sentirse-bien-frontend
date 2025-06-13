@@ -114,6 +114,27 @@ export default function ConocenosPage() {
             </div>
           </div>
         </section>
+
+        {/* Sección de Desarrollo y Equipo (versión discreta) */}
+        <section className="py-8 px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="max-w-3xl mx-auto text-center text-[#436E6C] space-y-4"
+          >
+            <h3 className="text-xl font-semibold">OpenDevs – Desarrollo de la Web</h3>
+            <p className="text-sm leading-relaxed">
+              Desarrollado por <span className="font-semibold">Risso</span>, <span className="font-semibold">Teo</span> y
+              <span className="font-semibold"> Grosso Gina</span>; estudiantes de <span className="font-semibold">Tecnicatura Universitaria en Programación </span>
+               (UTN – Facultad Regional Resistencia).
+            </p>
+            <p className="text-xs text-[#436E6C]/80">
+              Tecnologías: Next.js, React + TypeScript, Tailwind CSS, Framer Motion, Node.js &amp; Express, MongoDB, JWT.
+            </p>
+          </motion.div>
+        </section>
       </main>
     </>
   );

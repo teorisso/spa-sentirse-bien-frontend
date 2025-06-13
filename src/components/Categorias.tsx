@@ -50,10 +50,10 @@ export default function Categorias() {
                 className="object-cover w-full h-full group-hover:scale-105 transition duration-300"
               />
             </div>
-            <h3 className="text-lg font-lora font-semibold mb-4">{service.category}</h3>
+            <h3 className="text-lg font-roboto font-semibold mb-4">{service.category}</h3>
             <div className="flex-grow" />
             <Link href={{ pathname: '/servicios', hash: service.anchor }} className="w-full flex justify-center">
-              <button className="px-6 py-2 rounded-full border border-primary bg-white/80 text-primary font-lora font-semibold shadow-sm hover:bg-primary hover:text-white transition-all duration-200 mt-auto">
+              <button className="px-6 py-2 rounded-full border border-primary bg-white/80 text-primary font-roboto shadow-sm hover:bg-primary hover:text-white transition-all duration-200 mt-auto">
                 Ver más
               </button>
             </Link>

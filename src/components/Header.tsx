@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { User, Menu, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,15 +19,44 @@ export default function Header({ transparent = true }: HeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
 
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+
+    handleResize(); // Check initial screen size
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
+
+  // Cerrar menú al hacer clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const handleLogout = () => {
     logout();
@@ -50,20 +79,29 @@ export default function Header({ transparent = true }: HeaderProps) {
     { href: '/turnos', label: 'MIS TURNOS' },
   ];
 
+  // Lógica para determinar el fondo del header
+  const getHeaderBackground = () => {
+    // En móviles: siempre fondo sólido
+    if (isMobile) {
+      return 'bg-primary/95 backdrop-blur-md border-b border-primary/20 shadow-lg';
+    }
+    
+    // En desktop: comportamiento normal (transparente/sólido según transparent prop y scroll)
+    if (!transparent || isScrolled) {
+      return 'bg-primary/90 backdrop-blur-md border-b border-primary/20 shadow-lg';
+    }
+    
+    return 'bg-transparent';
+  };
+
   return (
     <motion.header 
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 font-roboto ${
-        transparent 
-          ? isScrolled 
-            ? 'bg-primary/90 backdrop-blur-md border-b border-primary/20 shadow-lg' 
-            : 'bg-transparent'
-          : 'bg-primary/90 backdrop-blur-md border-b border-primary/20 shadow-lg'
-      }`}
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 font-roboto ${getHeaderBackground()}`}
       initial={{ y: 0 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-5">
         <div className="flex items-center justify-between">
           <motion.div 
             className="flex items-center gap-3"
@@ -97,7 +135,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                 >
                   <Link
                     href={link.href}
-                    className="relative px-2 py-1 font-lora text-soft2 transition-all duration-300
+                    className="relative px-2 py-1 font-roboto text-soft2/80 transition-all duration-300
                       before:content-[''] before:absolute before:left-0 before:-bottom-1 before:w-0 before:h-[2px]
                       before:bg-accent before:transition-all before:duration-300
                       hover:before:w-full hover:text-accent hover:scale-105"
@@ -113,6 +151,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                 className="relative"
                 whileHover={{ scale: 1.1 }}
                 transition={{ duration: 0.2 }}
+                ref={menuRef}
               >
                 <User
                   className="w-6 h-6 cursor-pointer hover:text-accent transition-colors duration-300"
@@ -129,7 +168,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                     >
                       <Link
                         href="/perfil"
-                        className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora"
+                        className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto"
                         onClick={() => setShowMenu(false)}
                       >
                         Mi perfil
@@ -139,7 +178,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                           <div className="border-t border-gray-200 my-1"></div>
                           <Link
                             href="/profesional/turnos"
-                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto"
                             onClick={() => setShowMenu(false)}
                           >
                             Agenda
@@ -149,33 +188,33 @@ export default function Header({ transparent = true }: HeaderProps) {
                       {isAdmin && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider font-roboto">
                             Administración
                           </div>
                           <Link
                             href="/admin/usuarios"
-                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto text-primary"
                             onClick={() => setShowMenu(false)}
                           >
                             Gestión de Usuarios
                           </Link>
                           <Link
                             href="/admin/turnos"
-                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto text-primary"
                             onClick={() => setShowMenu(false)}
                           >
                             Gestión de Turnos
                           </Link>
                           <Link
                             href="/servicios"
-                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto text-primary"
                             onClick={() => setShowMenu(false)}
                           >
                             Gestión de Servicios
                           </Link>
                           <Link
                             href="/admin/pagos"
-                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto text-primary"
                             onClick={() => setShowMenu(false)}
                           >
                             Reportes de Pago
@@ -185,7 +224,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                       <div className="border-t border-gray-200 my-1"></div>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora"
+                        className="w-full text-left px-4 py-2 hover:bg-soft transition-colors duration-300 font-roboto"
                       >
                         Cerrar sesión
                       </button>
@@ -224,7 +263,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {link.label}
@@ -234,19 +273,19 @@ export default function Header({ transparent = true }: HeaderProps) {
                   <>
                     <Link
                       href="/perfil"
-                      className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                      className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Mi perfil
                     </Link>
                     {isProfessional && (
                       <>
-                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider">
+                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider font-roboto">
                           Administración
                         </div>
                         <Link
                           href="/profesional/turnos"
-                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Agenda
@@ -255,33 +294,33 @@ export default function Header({ transparent = true }: HeaderProps) {
                     )}
                     {isAdmin && (
                       <>
-                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider">
+                        <div className="px-3 py-2 text-xs font-semibold text-soft2/60 uppercase tracking-wider font-roboto">
                           Administración
                         </div>
                         <Link
                           href="/admin/usuarios"
-                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Gestión de Usuarios
                         </Link>
                         <Link
                           href="/admin/turnos"
-                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Gestión de Turnos
                         </Link>
                         <Link
                           href="/servicios"
-                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Gestión de Servicios
                         </Link>
                         <Link
                           href="/admin/pagos"
-                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Reportes de Pago
@@ -293,7 +332,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                         handleLogout();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                      className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                     >
                       Cerrar sesión
                     </button>
@@ -301,7 +340,7 @@ export default function Header({ transparent = true }: HeaderProps) {
                 ) : (
                   <Link
                     href="/login"
-                    className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-soft2 hover:text-accent hover:bg-primary/10 font-roboto"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Iniciar sesión

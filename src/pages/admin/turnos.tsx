@@ -8,8 +8,9 @@ import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { ITurnoPopulated } from '@/types';
 import { X, Calendar, Clock, User, FileText, Trash2, PlusCircle } from 'lucide-react';
-import PageHero from '@/components/PageHero';
 import ReservaModal from '@/components/ReservaModal';
+import LoadingScreen from '@/components/LoadingScreen';
+import PageHero from '@/components/PageHero';
 
 export default function AdminTurnosPage() {
   const { user, isAdmin, isAuthLoaded } = useAuth();
@@ -258,15 +259,11 @@ export default function AdminTurnosPage() {
 
   if (loading) {
     return (
-      <>
-        <PageHero
-          title="Administración de Turnos"
-          description="Gestiona todos los turnos del spa"
-        />
-        <div className="flex justify-center items-center min-h-[400px]">
-          <p className="text-lg">Cargando turnos...</p>
-        </div>
-      </>
+      <LoadingScreen
+        title="Administración de Turnos"
+        description="Gestiona todos los turnos del spa"
+        message="Cargando turnos..."
+      />
     );
   }
 
@@ -296,7 +293,6 @@ export default function AdminTurnosPage() {
         title="Administración de Turnos"
         description="Gestiona todos los turnos del spa"
       />
-      
       <div className="max-w-7xl mx-auto p-8 my-12">
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <div className="p-6 border-b">

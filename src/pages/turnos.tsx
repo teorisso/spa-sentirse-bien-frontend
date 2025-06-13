@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import PageHero from '@/components/PageHero';
+import LoadingScreen from '@/components/LoadingScreen';
 import { format, addHours, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
@@ -737,23 +738,13 @@ const TurnosPage = () => {
     [groupedTurnos, router, user, canCancelTurno]
   );
 
-  if (!isMounted) {
-    return <div className="flex justify-center items-center min-h-screen">Cargando...</div>;
-  }
-
-  if (loading) {
+  if (!isMounted || loading) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen">
-        <p className="mb-4">Cargando...</p>
-        <details className="text-sm text-gray-500 max-w-md p-4 bg-gray-50 rounded">
-          <summary className="cursor-pointer">Información de depuración</summary>
-          <div className="mt-2 text-xs">
-            <p>Usuario ID: {user?._id || 'No disponible'}</p>
-            <p>API Endpoint: {process.env.NEXT_PUBLIC_API_TURNO ? 'Configurado' : 'No configurado'}</p>
-            <p>Token: {typeof window !== 'undefined' && localStorage.getItem('token') ? 'Presente' : 'No disponible'}</p>
-          </div>
-        </details>
-      </div>
+      <LoadingScreen
+        title="Mis Turnos"
+        description="Gestiona tus reservas en Sentirse Bien"
+        message="Cargando turnos..."
+      />
     );
   }
 
