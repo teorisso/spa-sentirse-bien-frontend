@@ -173,6 +173,13 @@ export default function Header({ transparent = true }: HeaderProps) {
                           >
                             Gestión de Servicios
                           </Link>
+                          <Link
+                            href="/admin/pagos"
+                            className="block px-4 py-2 hover:bg-soft transition-colors duration-300 font-lora text-amber-700"
+                            onClick={() => setShowMenu(false)}
+                          >
+                            Reportes de Pago
+                          </Link>
                         </>
                       )}
                       <div className="border-t border-gray-200 my-1"></div>
@@ -271,6 +278,13 @@ export default function Header({ transparent = true }: HeaderProps) {
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           Gestión de Servicios
+                        </Link>
+                        <Link
+                          href="/admin/pagos"
+                          className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 hover:text-accent hover:bg-primary/10"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Reportes de Pago
                         </Link>
                       </>
                     )}
