@@ -9,6 +9,7 @@ import ServicioModal from '@/components/admin/ServicioModal';
 import ReservaModal from '@/components/ReservaModal'; // Import ReservaModal
 import { toast } from 'react-hot-toast'; // Import toast
 import { useRouter } from 'next/router'; // Import useRouter
+import { Plus } from 'lucide-react'; // Import Plus icon
 
 export default function ServiciosPage() {
   const [services, setServices] = useState<IService[]>([]);
@@ -140,7 +141,8 @@ export default function ServiciosPage() {
         description="Descubre la variedad de tratamientos que ofrecemos para tu bienestar."
       />
       {loading && (
-        <div className="text-center mt-10 p-4">
+        <div className="flex flex-col items-center mt-10 p-4">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
           <p className="text-lg text-primary">Cargando servicios...</p>
         </div>
       )}
@@ -169,9 +171,10 @@ export default function ServiciosPage() {
           {isAdmin && (
              <button
                 onClick={() => { setSelectedService(null); setIsModalOpen(true); }}
-                className="mt-4 bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark transition-colors"
+                className="flex items-center space-x-2 bg-primary text-white px-4 py-3 rounded-lg shadow-sm hover:bg-primary/90 transition-colors mt-4"
               >
-                Agregar Nuevo Servicio
+                <Plus className="h-5 w-5" />
+                <span>Agregar servicio</span>
               </button>
           )}
         </div>

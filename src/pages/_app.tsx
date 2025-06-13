@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import type { AppProps } from 'next/app';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import ChatbotWidget from '../components/ChatbotWidget';
 import { useRouter } from 'next/router';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -20,6 +21,7 @@ function AppContent({ Component, pageProps }: AppProps) {
             <Component {...pageProps} />
             {!isAdminRoute && <Footer />}
             <Toaster position="top-right" />
+            <ChatbotWidget />
         </>
     );
 }

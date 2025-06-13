@@ -63,7 +63,7 @@ export default function Hero() {
           >
             <button 
               onClick={handleReservaClick}
-              className="inline-block px-10 py-4 bg-primary text-white rounded-full shadow-lg font-semibold text-lg hover:bg-[#5A9A98] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+              className="inline-block px-10 py-4 bg-primary text-white rounded-2xl shadow-lg text-lg hover:bg-primary/80 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
             >
               Reservá tu turno
             </button>

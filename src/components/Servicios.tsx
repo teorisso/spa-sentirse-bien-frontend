@@ -148,7 +148,7 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete, onReser
               <div className="flex justify-end mb-6">
                 <button 
                   onClick={() => onEdit?.(null)}  // Pasar un objeto vacío para indicar creación nueva
-                  className="bg-accent/50 hover:bg-accent/30 text-gray-700 py-3 px-8 rounded-xl border border-primary/40 shadow-sm transition-all text-sm font-medium"
+                  className="bg-primary text-white py-3 px-8 rounded-lg shadow-sm hover:bg-primary/90 transition-colors text-sm font-medium"
                 >
                   Agregar Servicio +
                 </button>
@@ -205,7 +205,7 @@ export default function Servicios({ services, isAdmin, onEdit, onDelete, onReser
                           {!isAdmin && (
                             <button 
                               onClick={() => onReservarClick?.(service)}
-                              className="bg-accent/50 hover:bg-accent/30 text-gray-700 font-medium py-1.5 px-4 rounded-2xl border border-primary/40 shadow-sm transition-all text-xs"
+                              className="bg-primary text-white font-medium py-1.5 px-4 rounded-lg shadow-sm hover:bg-primary/90 transition-colors text-xs"
                             >
                               Reservar
                             </button>
