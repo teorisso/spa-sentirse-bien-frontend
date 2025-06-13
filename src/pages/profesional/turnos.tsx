@@ -233,12 +233,14 @@ export default function ProfesionalTurnosPage() {
           {/* Filtro por fecha */}
           <div className="flex flex-wrap gap-4 p-6 bg-gray-50 items-center">
             <div className="flex items-center gap-2">
-              <label className="font-medium">Fecha:</label>
+              <label htmlFor="date-filter" className="font-medium">Fecha:</label>
               <input
+                id="date-filter"
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="p-2 border rounded"
+                placeholder="Selecciona fecha"
               />
               {dateFilter && (
                 <button 

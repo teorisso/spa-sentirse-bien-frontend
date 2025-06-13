@@ -26,6 +26,26 @@ const PagoDebitoModal: React.FC<PagoDebitoModalProps> = ({ isOpen, onClose, amou
     setCvv('');
   };
 
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let digits = e.target.value.replace(/\D/g, ''); // solo dígitos
+
+    if (digits.length === 0) {
+      setExpiry('');
+      return;
+    }
+
+    if (digits.length <= 2) {
+      setExpiry(digits);
+      return;
+    }
+
+    // Limitar a 4 dígitos (MMYY)
+    digits = digits.slice(0, 4);
+
+    const formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
+    setExpiry(formatted);
+  };
+
   const handlePagar = async () => {
     if (!cardName || !/^[0-9]{16}$/.test(cardNumber.replace(/\s+/g, '')) || !/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(expiry) || !/^[0-9]{3}$/.test(cvv)) {
       toast.error('Por favor completa los datos de la tarjeta correctamente');
@@ -101,7 +121,7 @@ const PagoDebitoModal: React.FC<PagoDebitoModalProps> = ({ isOpen, onClose, amou
                     inputMode="numeric"
                     className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
                     value={expiry}
-                    onChange={(e) => setExpiry(e.target.value.replace(/[^0-9/]/g, '').slice(0, 5))}
+                    onChange={handleExpiryChange}
                     placeholder="08/27"
                   />
                 </div>
