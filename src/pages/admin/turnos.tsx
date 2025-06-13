@@ -298,7 +298,7 @@ export default function AdminTurnosPage() {
       />
       
       <div className="max-w-7xl mx-auto p-8 my-12">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <div className="p-6 border-b">
             <h2 className="text-2xl font-semibold text-primary">Administración de Turnos</h2>
           </div>
