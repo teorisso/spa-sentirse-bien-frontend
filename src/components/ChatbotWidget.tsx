@@ -62,7 +62,7 @@ const BOT_RESPONSES: Record<string, React.ReactNode> = {
   '💳 ¿Cuáles son los medios de pago?': (
     <ul className="list-disc list-inside space-y-1">
       <li>Efectivo</li>
-      <li>Tarjetas de débito con un descuento de 15% si se abona antes de las 48hs de la reserva</li>
+      <li>Tarjetas de débito con un descuento de 15% si se abona antes de las 48hs de la reserva.</li>
     </ul>
   ),
   '🙋 Quiero hablar con un humano': (
@@ -183,7 +183,7 @@ export default function ChatbotWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-roboto">
+    <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-50 font-roboto">
       {/* Botón flotante: solo cuando está cerrado */}
       {!isOpen && (
         <button
@@ -203,7 +203,7 @@ export default function ChatbotWidget() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ duration: 0.3 }}
-            className="w-[90vw] max-w-[420px] h-[40rem] max-h-[90vh] bg-white border border-gray-300 rounded-2xl shadow-2xl flex flex-col overflow-hidden mr-2 mb-16"
+            className="w-[92vw] sm:w-[85vw] md:w-[28rem] max-w-[420px] h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] md:h-[calc(100vh-7rem)] lg:h-[calc(100vh-8rem)] max-h-[calc(100vh-4rem)] bg-white border border-gray-300 rounded-2xl shadow-2xl flex flex-col overflow-hidden mr-1 sm:mr-2 mb-4"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-primary to-accent text-white text-base">
@@ -217,7 +217,7 @@ export default function ChatbotWidget() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -239,14 +239,14 @@ export default function ChatbotWidget() {
             </div>
 
             {/* Quick Replies + Input simulado */}
-            <div className="border-t border-gray-300 bg-gray-50 p-3 space-y-3">
+            <div className="border-t border-gray-300 bg-gray-50 p-2 space-y-2">
               {/* Quick Replies */}
-              <div className="grid gap-1.5">
+              <div className="grid gap-1">
                 {filteredReplies.map((qr) => (
                   <button
                     key={qr}
                     onClick={() => handleQuickReply(qr)}
-                    className="w-full flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm text-left transition-colors border border-gray-200"
+                    className="w-full flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors border border-gray-200"
                   >
                     {qr}
                   </button>
@@ -254,16 +254,16 @@ export default function ChatbotWidget() {
               </div>
 
               {/* Input habilitado */}
-              <div className="flex items-center gap-2 bg-white rounded-full border border-gray-300 px-3 py-2">
+              <div className="flex items-center gap-2 bg-white rounded-full border border-gray-300 px-2.5 py-1.5">
                 <input
                   type="text"
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyPress={handleInputKeyPress}
                   placeholder="Escribí un mensaje..."
-                  className="flex-1 bg-transparent placeholder:text-gray-400 text-sm focus:outline-none border-none"
+                  className="flex-1 bg-transparent placeholder:text-gray-400 text-xs focus:outline-none border-none"
                 />
-                <Send className="w-5 h-5 text-gray-400" />
+                <Send className="w-4 h-4 text-gray-400" />
               </div>
             </div>
           </motion.div>
